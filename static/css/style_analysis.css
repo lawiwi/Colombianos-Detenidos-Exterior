@@ -1,0 +1,8 @@
+/* style_analysis.css */
+.analysis-text {
+    /* Mínimo 300px, ideal 60% del ancho, máximo 70 caracteres (para lectura óptima) */
+    width: clamp(300px, 60%, 70ch);
+    margin: 0 auto; /* Centra el texto en la pantalla */
+    font-size: 1.1rem;
+    line-height: 1.6;
+}
