@@ -1451,7 +1451,7 @@ Análisis Poblacional
 document.addEventListener('DOMContentLoaded', function () {
 
     const elements = document.querySelectorAll(
-        '.na-section, .na-variable-block, .na-list li,.na-knowledge'
+        '.na-section, .na-variable-block, .na-list li, .na-knowledge'
     );
 
     if (!('IntersectionObserver' in window)) {
@@ -1470,7 +1470,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
             });
         },
-        { threshold: 0.12, rootMargin: '0px 0px -40px 0px' }
+        {
+            threshold: 0,
+            rootMargin: '0px 0px 0px 0px'
+        }
     );
 
     elements.forEach(function (el) {
