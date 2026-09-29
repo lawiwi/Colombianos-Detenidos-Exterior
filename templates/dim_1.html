@@ -1,63 +1,531 @@
 {% extends "base.html" %}
 
-{% block title %}Etapa 1 - Análisis{% endblock %}
-
-{% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/style_dashboards.css') }}">
+{% block title %}
+Dimensión Poblacional
 {% endblock %}
 
+
+{% block extra_css %}
+
+<link rel="stylesheet"
+      href="{{ url_for(
+          'static',
+          filename='css/style_dashboards.css'
+      ) }}">
+
+{% endblock %}
+
+
 {% block content %}
-<!-- El contenedor Grid que NO colapsa -->
-<div class="dashboard-grid">
-    
-    <!-- COLUMNA IZQUIERDA: Filtros -->
-    <aside class="cyber-panel sidebar-left">
-        <h3 class="panel-title">FILTROS</h3>
-        <div class="filter-group">
-            <label>Rango de Datos:</label>
-            <input type="date" class="cyber-input">
-        </div>
-        <div class="filter-group">
-            <label>Variable a Analizar:</label>
-            <select class="cyber-input">
-                <option>Seleccionar...</option>
-                <option>Contratos</option>
-                <option>Cuantías</option>
-            </select>
-        </div>
-        <button class="cyber-btn w-100">APLICAR</button>
-    </aside>
 
-    <!-- COLUMNA CENTRAL: Gráfico y KPIs -->
-    <main class="main-dashboard">
-        <div class="kpi-container">
-            <div class="cyber-panel kpi-card">
-                <p class="kpi-label">TOTAL REGISTROS</p>
-                <h2 class="kpi-value">1,045,200</h2>
-            </div>
-            <div class="cyber-panel kpi-card">
-                <p class="kpi-label">VALOR NULO (%)</p>
-                <h2 class="kpi-value warning">12.4%</h2>
-            </div>
-        </div>
 
-        <div class="cyber-panel chart-panel">
-            <h3 class="panel-title">VISUALIZACIÓN PRINCIPAL - ETAPA 1</h3>
-            <!-- Aquí irá el Iframe de PowerBI o tu gráfica -->
-            <div class="chart-placeholder">
-                <p>[ Área para incrustar el iframe de la gráfica ]</p>
-            </div>
-        </div>
-    </main>
+<!-- ======================================================
+     ENCABEZADO
+======================================================= -->
 
-    <!-- COLUMNA DERECHA: Conclusiones -->
-    <aside class="cyber-panel sidebar-right">
-        <h3 class="panel-title">CONCLUSIONES</h3>
-        <p class="analysis-text">
-            En esta etapa se observa una alta concentración de datos en ciertos sectores. 
-            Es necesario aplicar técnicas de imputación para los valores faltantes antes de pasar a la minería.
-        </p>
-    </aside>
+<div class="dashboard-header cyber-panel">
+
+    <h1 class="dashboard-main-title">
+        DIMENSIÓN POBLACIONAL
+    </h1>
+
+    <p class="dashboard-question">
+        ¿Cómo está compuesta y distribuida la población de
+        ciudadanos colombianos detenidos en el exterior según
+        sus principales características sociodemográficas y
+        penales?
+    </p>
 
 </div>
+
+
+<!-- ======================================================
+     GRID PRINCIPAL
+======================================================= -->
+
+<div class="dashboard-grid">
+
+
+    <!-- ==================================================
+         COLUMNA IZQUIERDA — FILTROS + VARIABLES
+    =================================================== -->
+
+    <aside class="sidebar-left">
+
+        <!-- FILTROS -->
+
+        <div class="cyber-panel">
+
+            <h3 class="panel-title">
+                FILTROS
+            </h3>
+
+
+            <form method="GET"
+                  action="{{ url_for('dimension_poblacional') }}">
+
+                <div class="filter-group">
+
+                    <label>PAÍS DE PRISIÓN</label>
+
+                    <select name="pais" class="cyber-input">
+
+                        <option value="">
+                            TODOS LOS PAÍSES
+                        </option>
+
+                        {% for pais in lista_paises %}
+
+                        <option value="{{ pais }}"
+                            {% if pais == pais_seleccionado %}
+                            selected
+                            {% endif %}>
+
+                            {{ pais }}
+
+                        </option>
+
+                        {% endfor %}
+
+                    </select>
+
+                </div>
+
+
+                <div class="filter-group">
+
+                    <label>GRUPO DE EDAD</label>
+
+                    <select name="edad" class="cyber-input">
+
+                        <option value="">
+                            TODOS LOS GRUPOS
+                        </option>
+
+                        {% for edad in lista_edades %}
+
+                        <option value="{{ edad }}"
+                            {% if edad == edad_seleccionada %}
+                            selected
+                            {% endif %}>
+
+                            {{ edad }}
+
+                        </option>
+
+                        {% endfor %}
+
+                    </select>
+
+                </div>
+
+
+                <button type="submit"
+                        class="cyber-btn w-100">
+
+                    APLICAR
+
+                </button>
+
+            </form>
+
+
+            <!-- FILTROS ACTIVOS + BANDERA -->
+
+            <div class="filter-description">
+
+                <span class="neon-text">
+                    FILTROS ACTIVOS
+                </span>
+
+                <div class="pais-activo">
+
+                    {% if pais_seleccionado %}
+
+                        {% if bandera_url %}
+                        <img src="{{ bandera_url }}"
+                             class="bandera-img"
+                             alt="{{ pais_seleccionado }}">
+                        {% endif %}
+
+                        <span>{{ pais_seleccionado }}</span>
+
+                    {% else %}
+
+                        <span class="pais-todos">
+                            🌎 Todos los países
+                        </span>
+
+                    {% endif %}
+
+                </div>
+
+                <p>
+                    Edad:
+                    {% if edad_seleccionada %}
+                        {{ edad_seleccionada }}
+                    {% else %}
+                        Todos
+                    {% endif %}
+                </p>
+
+            </div>
+
+        </div>
+
+
+        <!-- DESCRIPCIÓN DE VARIABLES -->
+
+        <div class="cyber-panel variables-panel-sidebar">
+
+            <h3 class="panel-title">
+                VARIABLES UTILIZADAS
+            </h3>
+
+
+            <div class="variable-item-sidebar">
+
+                <span class="variable-name-sidebar">
+                    CANTIDAD
+                </span>
+
+                <span class="variable-desc-sidebar">
+                    Número de personas representadas en cada
+                    registro. Base de todas las sumatorias y
+                    porcentajes del tablero.
+                </span>
+
+            </div>
+
+
+            <div class="variable-item-sidebar">
+
+                <span class="variable-name-sidebar">
+                    GÉNERO
+                </span>
+
+                <span class="variable-desc-sidebar">
+                    Identidad de género reportada por la
+                    persona detenida (Masculino, Femenino,
+                    Otro, No binario).
+                </span>
+
+            </div>
+
+
+            <div class="variable-item-sidebar">
+
+                <span class="variable-name-sidebar">
+                    GRUPO EDAD
+                </span>
+
+                <span class="variable-desc-sidebar">
+                    Segmento etario del detenido: Primera
+                    infancia, Infante, Adolescente, Adulto
+                    joven, Adulto y Adulto mayor.
+                </span>
+
+            </div>
+
+
+            <div class="variable-item-sidebar">
+
+                <span class="variable-name-sidebar">
+                    PAÍS PRISIÓN
+                </span>
+
+                <span class="variable-desc-sidebar">
+                    País donde se encuentra recluida la
+                    persona. Se usa como filtro principal
+                    del tablero.
+                </span>
+
+            </div>
+
+
+            <div class="variable-item-sidebar">
+
+                <span class="variable-name-sidebar">
+                    DELITO
+                </span>
+
+                <span class="variable-desc-sidebar">
+                    Tipo penal por el cual se encuentra
+                    detenida la persona (narcotráfico,
+                    hurto, homicidio, entre otros).
+                </span>
+
+            </div>
+
+
+            <div class="variable-item-sidebar">
+
+                <span class="variable-name-sidebar">
+                    SITUACIÓN JURÍDICA
+                </span>
+
+                <span class="variable-desc-sidebar">
+                    Estado procesal del detenido:
+                    condenado, en investigación, en juicio,
+                    en espera de deportación o extraditado.
+                </span>
+
+            </div>
+
+        </div>
+
+    </aside>
+
+
+    <!-- ==================================================
+         COLUMNA CENTRAL — KPIs + GRÁFICAS
+    =================================================== -->
+
+    <main class="main-dashboard">
+
+
+        <!-- ==============================================
+             INDICADORES
+        =============================================== -->
+
+        <div class="kpi-container">
+
+
+            <div class="cyber-panel kpi-card">
+
+                <p class="kpi-label">
+                    POBLACIÓN TOTAL
+                </p>
+
+                <h2 class="kpi-value">
+                    {{ "{:,}".format(poblacion_total) }}
+                </h2>
+
+                <p class="kpi-description">
+                    Suma de CANTIDAD · {{ "{:,}".format(total_registros) }} registros
+                </p>
+
+            </div>
+
+
+            <div class="cyber-panel kpi-card">
+
+                <p class="kpi-label">
+                    GÉNERO PREDOMINANTE
+                </p>
+
+                <h2 class="kpi-value">
+                    {{ genero_predominante }}
+                </h2>
+
+                <p class="kpi-description">
+                    {{ "%.2f"|format(porcentaje_genero) }}% del total filtrado
+                </p>
+
+            </div>
+
+
+            <div class="cyber-panel kpi-card">
+
+                <p class="kpi-label">
+                    DELITO PREDOMINANTE
+                </p>
+
+                <h2 class="kpi-value">
+                    {{ delito_predominante }}
+                </h2>
+
+                <p class="kpi-description">
+                    {{ "%.2f"|format(porcentaje_delito) }}% del total filtrado
+                </p>
+
+            </div>
+
+        </div>
+
+
+        <!-- ==============================================
+             GRÁFICA 1 — GÉNERO (DONA)
+        =============================================== -->
+
+        <div class="cyber-panel chart-panel">
+
+            <h3 class="panel-title">
+                DISTRIBUCIÓN POR GÉNERO
+            </h3>
+
+            <div class="plot-container">
+                {{ grafica_genero | safe }}
+            </div>
+
+            <div class="chart-interpretation">
+
+                <strong>INTERPRETACIÓN</strong>
+
+                <p>{{ interp_genero | safe }}</p>
+
+            </div>
+
+        </div>
+
+
+        <!-- ==============================================
+             GRÁFICA 2 — SITUACIÓN JURÍDICA
+        =============================================== -->
+
+        <div class="cyber-panel chart-panel">
+
+            <h3 class="panel-title">
+                DISTRIBUCIÓN POR SITUACIÓN JURÍDICA
+            </h3>
+
+            <div class="plot-container">
+                {{ grafica_situacion | safe }}
+            </div>
+
+            <div class="chart-interpretation">
+
+                <strong>INTERPRETACIÓN</strong>
+
+                <p>{{ interp_situacion | safe }}</p>
+
+            </div>
+
+        </div>
+
+
+        <!-- ==============================================
+             GRÁFICA 3 — DELITO (TORTA)
+        =============================================== -->
+
+        <div class="cyber-panel chart-panel">
+
+            <h3 class="panel-title">
+                TOP DELITOS ASOCIADOS A LA DETENCIÓN
+            </h3>
+
+            <div class="plot-container">
+                {{ grafica_delito | safe }}
+            </div>
+
+            <div class="chart-interpretation">
+
+                <strong>INTERPRETACIÓN</strong>
+
+                <p>{{ interp_delito | safe }}</p>
+
+            </div>
+
+        </div>
+
+
+    </main>
+
+
+    <!-- ==================================================
+         COLUMNA DERECHA — CONCLUSIONES
+    =================================================== -->
+
+    <aside class="cyber-panel sidebar-right">
+
+        <h3 class="panel-title">
+            CONCLUSIONES
+        </h3>
+
+
+        <div class="dashboard-conclusion">
+
+            <span class="neon-text">
+                CONOCIMIENTO 1
+            </span>
+
+            <p>
+                La población está fuertemente masculinizada
+                (≈ 87 % hombres). Cualquier política de
+                asistencia consular, atención psicosocial o
+                defensa jurídica debe considerar este sesgo
+                de género como característica estructural.
+            </p>
+
+        </div>
+
+
+        <div class="dashboard-conclusion">
+
+            <span class="neon-text">
+                CONOCIMIENTO 2
+            </span>
+
+            <p>
+                La mitad de los detenidos ya está condenada y
+                más de un tercio se encuentra en
+                investigación. Esto implica que la demanda
+                principal de asistencia consular se concentra
+                en el acompañamiento jurídico en etapas
+                procesales y en la ejecución de la pena.
+            </p>
+
+        </div>
+
+
+        <div class="dashboard-conclusion">
+
+            <span class="neon-text">
+                CONOCIMIENTO 3
+            </span>
+
+            <p>
+                El narcotráfico es el delito predominante
+                (≈ 44 %), muy por encima de cualquier otro.
+                La política criminal en el exterior y la
+                asistencia jurídica deben priorizar este
+                tipo penal por su peso relativo.
+            </p>
+
+        </div>
+
+
+        <div class="dashboard-warning">
+
+            <strong>
+                LIMITACIÓN DEL ANÁLISIS
+            </strong>
+
+            <p>
+                La elevada proporción de valores
+                <em>Desconocido</em> en variables clave
+                (país de prisión, grupo de edad y delito)
+                reduce la precisión de la caracterización y
+                obliga a interpretar los resultados como
+                tendencias generales, no como cifras exactas.
+            </p>
+
+        </div>
+
+
+        <div class="dashboard-decision">
+
+            <strong>
+                POSIBLE DECISIÓN SUSTENTADA
+            </strong>
+
+            <p>
+                Dado que la población es mayoritariamente
+                masculina, adulta y condenada por
+                narcotráfico, se recomienda priorizar
+                programas de prevención del delito de drogas
+                y fortalecer la asistencia jurídica consular
+                en los países con mayor concentración de
+                casos identificados (España, Ecuador,
+                Estados Unidos y Venezuela).
+            </p>
+
+        </div>
+
+
+    </aside>
+
+
+</div>
+
 {% endblock %}
