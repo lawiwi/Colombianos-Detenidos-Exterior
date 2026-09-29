@@ -1070,6 +1070,361 @@ Análisis Poblacional
 
     </section>
 
+    <!-- ======================================================
+        08 · CONOCIMIENTOS EVIDENTES
+    ======================================================= -->
+
+    <section class="na-section">
+
+        <div class="na-section-header">
+            <span class="na-section-number">08</span>
+            <h2 class="na-section-title">
+                TRES CONOCIMIENTOS EVIDENTES
+            </h2>
+        </div>
+
+        <p class="analysis-text" style="margin-bottom: 34px;">
+            Cada conocimiento se documenta siguiendo la estructura
+            exigida por la rúbrica:
+            <em>pregunta, variables, procedimiento, evidencia,
+            hallazgo, interpretación, utilidad y limitación</em>.
+            La evidencia incluye la gráfica generada a partir del
+            conjunto de datos.
+        </p>
+
+
+        <!-- ======================================================
+            CONOCIMIENTO 1
+        ======================================================= -->
+
+        <div class="na-knowledge" id="k1">
+
+            <div class="na-knowledge-head">
+                <span class="na-knowledge-num">K1</span>
+                <h3 class="na-knowledge-title">
+                    FUERTE MASCULINIZACIÓN DE LA POBLACIÓN DETENIDA
+                </h3>
+            </div>
+
+            <div class="na-knowledge-flow">
+
+                <div class="na-k-step na-k-step--wide">
+                    <span class="na-k-step__label">Pregunta</span>
+                    <p class="na-k-step__text">
+                        ¿Cómo se distribuye la población detenida
+                        en el exterior según su género?
+                    </p>
+                </div>
+
+                <div class="na-k-step">
+                    <span class="na-k-step__label">Variables</span>
+                    <p class="na-k-step__text">
+                        <code>GÉNERO</code> (categórica) y
+                        <code>CANTIDAD</code> (numérica, agregadora).
+                    </p>
+                </div>
+
+                <div class="na-k-step">
+                    <span class="na-k-step__label">Procedimiento</span>
+                    <p class="na-k-step__text">
+                        Agrupación por <code>GÉNERO</code>, suma de
+                        <code>CANTIDAD</code> y cálculo del porcentaje
+                        sobre el total filtrado.
+                    </p>
+                </div>
+
+                <div class="na-k-step na-k-step--wide na-k-step--evidencia">
+                    <span class="na-k-step__label">Evidencia</span>
+                    <p class="na-k-step__text">
+                        Gráfica de dona
+                        <em>"Distribución por género"</em>
+                        del tablero de la dimensión poblacional.
+                        El gráfico se genera dinámicamente con Plotly
+                        a partir del dataset cargado por el sistema.
+                    </p>
+                    <div class="na-k-chart">
+                        {{ grafica_k1 | safe }}
+                    </div>
+                </div>
+
+                <div class="na-k-step">
+                    <span class="na-k-step__label">Hallazgo</span>
+                    <p class="na-k-step__text">
+                        <strong>Masculino: 87,40 %</strong>
+                        (1.627.708 personas).
+                        <strong>Femenino: 12,56 %</strong>
+                        (233.899 personas). Otro, No binario y
+                        Desconocido: menos del 0,03 % en conjunto.
+                    </p>
+                </div>
+
+                <div class="na-k-step">
+                    <span class="na-k-step__label">Interpretación</span>
+                    <p class="na-k-step__text">
+                        La detención de colombianos en el exterior es
+                        un fenómeno <em>estructuralmente masculino</em>,
+                        con una relación aproximada de 7 hombres por
+                        cada mujer. El patrón se mantiene al aplicar
+                        filtros por país y grupo de edad, lo que
+                        confirma que no es un artefacto de una
+                        categoría específica.
+                    </p>
+                </div>
+
+                <div class="na-k-step na-k-step--wide na-k-step--utility">
+                    <span class="na-k-step__label">Utilidad</span>
+                    <p class="na-k-step__text">
+                        Orientar la política de prevención y
+                        asistencia consular hacia un enfoque de
+                        género masculino, sin abandonar la atención
+                        a las mujeres detenidas, que aunque
+                        minoritarias requieren protocolos
+                        diferenciados.
+                    </p>
+                </div>
+
+                <div class="na-k-step na-k-step--wide na-k-step--limit">
+                    <span class="na-k-step__label">Limitación</span>
+                    <p class="na-k-step__text">
+                        No es posible concluir sobre identidad de
+                        género autopercibida ni sobre las condiciones
+                        específicas de las mujeres detenidas, dado
+                        que las categorías <em>Otro</em> y
+                        <em>No binario</em> tienen menos de 500
+                        registros combinados.
+                    </p>
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- ======================================================
+            CONOCIMIENTO 2
+        ======================================================= -->
+
+        <div class="na-knowledge" id="k2">
+
+            <div class="na-knowledge-head">
+                <span class="na-knowledge-num">K2</span>
+                <h3 class="na-knowledge-title">
+                    PREDOMINIO DE ADULTOS Y CONCENTRACIÓN PROCESAL EN CONDENADOS
+                </h3>
+            </div>
+
+            <div class="na-knowledge-flow">
+
+                <div class="na-k-step na-k-step--wide">
+                    <span class="na-k-step__label">Pregunta</span>
+                    <p class="na-k-step__text">
+                        ¿Cuál es la estructura etaria y procesal de
+                        la población de colombianos detenidos en el
+                        exterior?
+                    </p>
+                </div>
+
+                <div class="na-k-step">
+                    <span class="na-k-step__label">Variables</span>
+                    <p class="na-k-step__text">
+                        <code>GRUPO EDAD</code>,
+                        <code>SITUACIÓN JURÍDICA</code> y
+                        <code>CANTIDAD</code>.
+                    </p>
+                </div>
+
+                <div class="na-k-step">
+                    <span class="na-k-step__label">Procedimiento</span>
+                    <p class="na-k-step__text">
+                        Distribución por grupo etario y por situación
+                        jurídica, con cálculo de porcentajes sobre el
+                        total filtrado. Cruce dinámico con los filtros
+                        de país y edad del tablero.
+                    </p>
+                </div>
+
+                <div class="na-k-step na-k-step--wide na-k-step--evidencia">
+                    <span class="na-k-step__label">Evidencia</span>
+                    <p class="na-k-step__text">
+                        Gráfica de barras horizontales
+                        <em>"Distribución por situación jurídica"</em>
+                        del tablero de la dimensión poblacional. El
+                        gráfico se genera dinámicamente con Plotly
+                        a partir del dataset cargado por el sistema.
+                    </p>
+                    <div class="na-k-chart">
+                        {{ grafica_k2 | safe }}
+                    </div>
+                </div>
+
+                <div class="na-k-step">
+                    <span class="na-k-step__label">Hallazgo</span>
+                    <p class="na-k-step__text">
+                        <strong>Adulto: 50,49 %</strong> de la
+                        población con edad conocida.
+                        <strong>Condenado: 49,93 %</strong>;
+                        <strong>En investigación: 37,32 %</strong>;
+                        <strong>En juicio: 8,63 %</strong>.
+                    </p>
+                </div>
+
+                <div class="na-k-step">
+                    <span class="na-k-step__label">Interpretación</span>
+                    <p class="na-k-step__text">
+                        La población detenida está en plena edad
+                        productiva y la mitad ya tiene sentencia
+                        condenatoria, mientras que cerca de un tercio
+                        permanece en fase de instrucción. Esto implica
+                        que la demanda de asistencia consular es
+                        <em>bimodal</em>: acompañamiento jurídico
+                        temprano (investigación) y apoyo en ejecución
+                        de pena (condenados).
+                    </p>
+                </div>
+
+                <div class="na-k-step na-k-step--wide na-k-step--utility">
+                    <span class="na-k-step__label">Utilidad</span>
+                    <p class="na-k-step__text">
+                        Priorizar la asignación de defensores
+                        públicos y programas de acompañamiento en las
+                        etapas procesales iniciales, sin descuidar
+                        los programas de reinserción y traslado de
+                        condenados.
+                    </p>
+                </div>
+
+                <div class="na-k-step na-k-step--wide na-k-step--limit">
+                    <span class="na-k-step__label">Limitación</span>
+                    <p class="na-k-step__text">
+                        El 34,88 % de los registros tiene edad
+                        <em>Desconocida</em>, lo que impide
+                        caracterizar por completo la estructura
+                        etaria. Tampoco se distingue entre tipos de
+                        condena (firme, en apelación) ni se conoce
+                        la duración de las penas.
+                    </p>
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- ======================================================
+            CONOCIMIENTO 3
+        ======================================================= -->
+
+        <div class="na-knowledge" id="k3">
+
+            <div class="na-knowledge-head">
+                <span class="na-knowledge-num">K3</span>
+                <h3 class="na-knowledge-title">
+                    NARCOTRÁFICO COMO DELITO PREDOMINANTE
+                </h3>
+            </div>
+
+            <div class="na-knowledge-flow">
+
+                <div class="na-k-step na-k-step--wide">
+                    <span class="na-k-step__label">Pregunta</span>
+                    <p class="na-k-step__text">
+                        ¿Qué tipo de delito concentra la mayor parte
+                        de las detenciones de colombianos en el
+                        exterior?
+                    </p>
+                </div>
+
+                <div class="na-k-step">
+                    <span class="na-k-step__label">Variables</span>
+                    <p class="na-k-step__text">
+                        <code>DELITO</code> y <code>CANTIDAD</code>,
+                        con cruce dinámico por
+                        <code>PAÍS PRISIÓN</code> y
+                        <code>GRUPO EDAD</code> a través de los filtros.
+                    </p>
+                </div>
+
+                <div class="na-k-step">
+                    <span class="na-k-step__label">Procedimiento</span>
+                    <p class="na-k-step__text">
+                        Agrupación por <code>DELITO</code>, suma de
+                        <code>CANTIDAD</code>, orden descendente y
+                        selección del <em>top 8</em>. Recalculo
+                        automático según filtros aplicados.
+                    </p>
+                </div>
+
+                <div class="na-k-step na-k-step--wide na-k-step--evidencia">
+                    <span class="na-k-step__label">Evidencia</span>
+                    <p class="na-k-step__text">
+                        Gráfica de torta
+                        <em>"Top delitos asociados a la detención"</em>
+                        del tablero de la dimensión poblacional. El
+                        gráfico se genera dinámicamente con Plotly
+                        a partir del dataset cargado por el sistema.
+                    </p>
+                    <div class="na-k-chart">
+                        {{ grafica_k3 | safe }}
+                    </div>
+                </div>
+
+                <div class="na-k-step">
+                    <span class="na-k-step__label">Hallazgo</span>
+                    <p class="na-k-step__text">
+                        <strong>Narcotráfico: 44,17 %</strong>
+                        (822.660 personas). Le siguen
+                        <strong>Robo / Hurto</strong> con 12,69 % y
+                        <strong>Homicidio / Tentativa</strong> con
+                        4,89 %. La categoría
+                        <em>Desconocido</em> pesa 14,85 %.
+                    </p>
+                </div>
+
+                <div class="na-k-step">
+                    <span class="na-k-step__label">Interpretación</span>
+                    <p class="na-k-step__text">
+                        La población detenida muestra una
+                        <em>especialización delictiva clara</em>
+                        en torno al delito de drogas, que pesa más
+                        que los siguientes siete delitos sumados.
+                        Esto sugiere que el perfil penal del
+                        colombiano detenido en el exterior está
+                        fuertemente determinado por dinámicas
+                        transnacionales de narcotráfico, más que
+                        por delitos comunes.
+                    </p>
+                </div>
+
+                <div class="na-k-step na-k-step--wide na-k-step--utility">
+                    <span class="na-k-step__label">Utilidad</span>
+                    <p class="na-k-step__text">
+                        Enfocar los recursos de cooperación jurídica
+                        internacional, defensa técnica especializada
+                        y programas de prevención en el delito de
+                        drogas, articulando con los consulados en
+                        los países de mayor concentración.
+                    </p>
+                </div>
+
+                <div class="na-k-step na-k-step--wide na-k-step--limit">
+                    <span class="na-k-step__label">Limitación</span>
+                    <p class="na-k-step__text">
+                        El 14,85 % de los casos aparece como
+                        <em>Desconocido</em> y el dataset no
+                        distingue el rol del detenido (autor
+                        material, transportador, financiador).
+                        Tampoco permite establecer la cuantía de
+                        sustancia incautada ni la gravedad específica
+                        del tipo penal.
+                    </p>
+                </div>
+
+            </div>
+
+        </div>
+
+    </section>
+
 
     <!-- ======================================================
          CIERRE
@@ -1096,7 +1451,7 @@ Análisis Poblacional
 document.addEventListener('DOMContentLoaded', function () {
 
     const elements = document.querySelectorAll(
-        '.na-section, .na-variable-block, .na-list li'
+        '.na-section, .na-variable-block, .na-list li,.na-knowledge'
     );
 
     if (!('IntersectionObserver' in window)) {

@@ -847,7 +847,164 @@ def dimension_poblacional():
 
 @app.route('/analisis-poblacional')
 def analisis_poblacional():
-    return render_template('analisis_poblacional.html')
+
+    df = cargar_dataset_procesado()
+
+    # ========================================================
+    # GRÁFICA K1 — GÉNERO
+    # ========================================================
+
+    genero = (
+        df.groupby("GENERO", dropna=False)["CANTIDAD"]
+        .sum()
+        .reset_index()
+    )
+    genero.columns = ["categoria", "cantidad"]
+    genero = genero.sort_values("cantidad", ascending=False)
+
+    fig_k1 = px.pie(
+        genero,
+        names="categoria",
+        values="cantidad",
+        hole=0.55,
+        color="categoria",
+        color_discrete_sequence=[
+            "#00f0ff", "#ff2bd1", "#7affb2",
+            "#ffb703", "#a259ff", "#ff6b6b"
+        ],
+    )
+    fig_k1.update_traces(
+        textinfo="percent+label",
+        textfont_size=11,
+        marker=dict(line=dict(color="#0a0a0a", width=2)),
+        hovertemplate=(
+            "<b>%{label}</b><br>"
+            "Personas: %{value:,.0f}<br>"
+            "%{percent}<extra></extra>"
+        )
+    )
+    fig_k1.update_layout(
+        template="plotly_dark",
+        height=380,
+        showlegend=False,
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        margin=dict(l=10, r=10, t=10, b=10),
+        font=dict(family="Share Tech Mono, monospace", size=11),
+    )
+
+    grafica_k1 = fig_k1.to_html(
+        full_html=False,
+        include_plotlyjs="cdn",
+        config={"displayModeBar": False}
+    )
+
+    # ========================================================
+    # GRÁFICA K2 — SITUACIÓN JURÍDICA
+    # ========================================================
+
+    situacion = (
+        df.groupby("SITUACION", dropna=False)["CANTIDAD"]
+        .sum()
+        .reset_index()
+    )
+    situacion.columns = ["categoria", "cantidad"]
+    situacion = situacion.sort_values("cantidad", ascending=True)
+
+    fig_k2 = px.bar(
+        situacion,
+        x="cantidad",
+        y="categoria",
+        orientation="h",
+        text="cantidad",
+        color="cantidad",
+        color_continuous_scale=["#0a1a2f", "#00f0ff", "#ff2bd1"],
+    )
+    fig_k2.update_traces(
+        texttemplate="%{text:,.0f}",
+        textposition="outside"
+    )
+    fig_k2.update_layout(
+        template="plotly_dark",
+        height=380,
+        coloraxis_showscale=False,
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        margin=dict(l=10, r=10, t=10, b=10),
+        font=dict(family="Share Tech Mono, monospace", size=11),
+        xaxis=dict(gridcolor="rgba(0,240,255,0.08)"),
+        yaxis=dict(gridcolor="rgba(0,240,255,0.08)"),
+    )
+
+    grafica_k2 = fig_k2.to_html(
+        full_html=False,
+        include_plotlyjs=False,
+        config={"displayModeBar": False}
+    )
+
+    # ========================================================
+    # GRÁFICA K3 — DELITO (TOP 8)
+    # ========================================================
+
+    delito = (
+        df.groupby("DELITO", dropna=False)["CANTIDAD"]
+        .sum()
+        .reset_index()
+    )
+    delito.columns = ["categoria", "cantidad"]
+    delito = delito.sort_values("cantidad", ascending=False)
+
+    top_delitos = delito.head(8).copy()
+
+    fig_k3 = px.pie(
+        top_delitos,
+        names="categoria",
+        values="cantidad",
+        color="categoria",
+        color_discrete_sequence=px.colors.qualitative.Bold,
+        hole=0.35
+    )
+    fig_k3.update_traces(
+        textinfo="percent",
+        textfont_size=11,
+        textposition="inside",
+        marker=dict(line=dict(color="#0a0a0a", width=2)),
+        hovertemplate=(
+            "<b>%{label}</b><br>"
+            "Personas: %{value:,.0f}<br>"
+            "Porcentaje: %{percent}<extra></extra>"
+        )
+    )
+    fig_k3.update_layout(
+        template="plotly_dark",
+        height=420,
+        showlegend=True,
+        legend=dict(
+            orientation="v",
+            yanchor="middle",
+            y=0.5,
+            xanchor="left",
+            x=1.02,
+            font=dict(size=10)
+        ),
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        margin=dict(l=10, r=10, t=10, b=10),
+        font=dict(family="Share Tech Mono, monospace", size=11),
+    )
+
+    grafica_k3 = fig_k3.to_html(
+        full_html=False,
+        include_plotlyjs=False,
+        config={"displayModeBar": False}
+    )
+
+    return render_template(
+        'analisis_poblacional.html',
+        grafica_k1=grafica_k1,
+        grafica_k2=grafica_k2,
+        grafica_k3=grafica_k3,
+    )
 
 
 # ============================================================

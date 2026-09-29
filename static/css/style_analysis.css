@@ -832,3 +832,247 @@
     font-size: 1rem;
     filter: drop-shadow(0 0 6px rgba(0, 240, 255, 0.7));
 }
+
+/* ============================================================
+   CONOCIMIENTOS EVIDENTES — LAYOUT DISTRIBUIDO
+============================================================ */
+
+.na-knowledge {
+    background: var(--na-panel);
+    border: 1px solid var(--na-border);
+    border-radius: 10px;
+    margin-bottom: 34px;
+    position: relative;
+    overflow: hidden;
+    opacity: 0;
+    transform: translateY(26px);
+    transition:
+        opacity 0.75s ease,
+        transform 0.75s ease;
+}
+
+.na-knowledge.is-visible {
+    opacity: 1;
+    transform: none;
+}
+
+.na-knowledge::before {
+    content: '';
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 3px;
+    background:
+        linear-gradient(
+            90deg,
+            var(--na-cyan),
+            var(--na-pink)
+        );
+    box-shadow: 0 0 14px rgba(0, 240, 255, 0.5);
+}
+
+
+/* ============================================================
+   CABECERA DEL CONOCIMIENTO
+============================================================ */
+
+.na-knowledge-head {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    padding: 22px 26px 18px;
+    border-bottom: 1px dashed var(--na-border);
+    background:
+        linear-gradient(
+            90deg,
+            rgba(0, 240, 255, 0.05),
+            transparent 70%
+        );
+}
+
+.na-knowledge-num {
+    font-family: 'Syncopate', sans-serif;
+    font-size: 1rem;
+    color: var(--na-cyan);
+    letter-spacing: 2px;
+    flex-shrink: 0;
+    padding: 6px 12px;
+    border: 1px solid var(--na-cyan);
+    border-radius: 4px;
+    background: rgba(0, 240, 255, 0.06);
+    box-shadow:
+        0 0 14px rgba(0, 240, 255, 0.35);
+    text-shadow:
+        0 0 12px rgba(0, 240, 255, 0.6);
+}
+
+.na-knowledge-title {
+    margin: 0;
+    font-family: 'Syncopate', sans-serif;
+    font-size: 0.85rem;
+    letter-spacing: 2px;
+    color: #fff;
+    line-height: 1.4;
+}
+
+
+/* ============================================================
+   FLUJO / GRID DE PASOS
+============================================================ */
+
+.na-knowledge-flow {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    padding: 22px 26px 26px;
+}
+
+.na-k-step {
+    position: relative;
+    padding: 14px 18px;
+    background: rgba(0, 240, 255, 0.03);
+    border: 1px solid var(--na-border);
+    border-left: 2px solid var(--na-cyan);
+    border-radius: 4px;
+    transition:
+        background 0.3s ease,
+        transform 0.3s ease,
+        box-shadow 0.3s ease;
+}
+
+.na-k-step:hover {
+    background: rgba(0, 240, 255, 0.07);
+    transform: translateX(2px);
+    box-shadow:
+        0 0 14px rgba(0, 240, 255, 0.15);
+}
+
+.na-k-step--wide {
+    grid-column: 1 / -1;
+}
+
+.na-k-step__label {
+    display: block;
+    font-family: 'Syncopate', sans-serif;
+    font-size: 0.6rem;
+    letter-spacing: 2px;
+    color: var(--na-cyan);
+    margin-bottom: 8px;
+    text-transform: uppercase;
+}
+
+.na-k-step__text {
+    margin: 0;
+    color: var(--na-text);
+    font-size: 0.87rem;
+    line-height: 1.55;
+}
+
+.na-k-step__text em {
+    color: var(--na-cyan);
+    font-style: italic;
+}
+
+.na-k-step__text strong {
+    color: #fff;
+}
+
+.na-k-step__text code {
+    color: var(--na-pink);
+    background: rgba(255, 43, 209, 0.08);
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-size: 0.88em;
+    font-family: 'Share Tech Mono', monospace;
+}
+
+
+/* ============================================================
+   VARIANTES DE PASO
+============================================================ */
+
+.na-k-step--evidencia {
+    border-left-color: var(--na-yellow);
+    background:
+        linear-gradient(
+            180deg,
+            rgba(255, 183, 3, 0.05),
+            rgba(0, 240, 255, 0.03)
+        );
+}
+
+.na-k-step--evidencia .na-k-step__label {
+    color: var(--na-yellow);
+}
+
+.na-k-step--utility {
+    border-left-color: var(--na-green);
+    background: rgba(122, 255, 178, 0.05);
+}
+
+.na-k-step--utility .na-k-step__label {
+    color: var(--na-green);
+}
+
+.na-k-step--limit {
+    border-left-color: var(--na-pink);
+    background: rgba(255, 43, 209, 0.05);
+}
+
+.na-k-step--limit .na-k-step__label {
+    color: var(--na-pink);
+}
+
+
+/* ============================================================
+   CONTENEDOR DE LA GRÁFICA EN "EVIDENCIA"
+============================================================ */
+
+.na-k-chart {
+    margin-top: 16px;
+    padding: 10px;
+    border: 1px solid rgba(255, 183, 3, 0.25);
+    border-radius: 6px;
+    background:
+        linear-gradient(
+            180deg,
+            rgba(0, 0, 0, 0.35),
+            rgba(0, 0, 0, 0.15)
+        );
+    box-shadow:
+        inset 0 0 30px rgba(255, 183, 3, 0.05);
+    overflow: hidden;
+}
+
+
+/* ============================================================
+   RESPONSIVE
+============================================================ */
+
+@media (max-width: 900px) {
+
+    .na-knowledge-flow {
+        grid-template-columns: 1fr;
+    }
+
+    .na-k-step,
+    .na-k-step--wide {
+        grid-column: 1;
+    }
+
+    .na-knowledge-head {
+        padding: 18px 18px 14px;
+    }
+
+    .na-knowledge-flow {
+        padding: 18px 18px 22px;
+    }
+
+    .na-knowledge-num {
+        font-size: 0.85rem;
+        padding: 4px 9px;
+    }
+
+    .na-knowledge-title {
+        font-size: 0.75rem;
+    }
+}
