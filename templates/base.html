@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}PROYECTO ANALÍTICA{% endblock %}</title>
+    
+    <!-- CSS Global -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style_base.css') }}">
+    
+    <!-- Espacio para CSS específico de cada página -->
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+
+    <!-- Fondo dinámico -->
+    <div class="background-nebula"></div>
+
+    <!-- Menú de Navegación (Ahora seguro en la parte superior) -->
+    <nav class="cyber-navbar">
+        <a href="{{ url_for('index') }}" class="nav-brand">CORE</a>
+        <div class="nav-links">
+            <a href="{{ url_for('dimension_1') }}" class="nav-hex">D1</a>
+            <a href="{{ url_for('dimension_2') }}" class="nav-hex">D2</a>
+            <a href="{{ url_for('dimension_3') }}" class="nav-hex">D3</a>
+            <a href="{{ url_for('dimension_4') }}" class="nav-hex">D4</a>
+        </div>
+    </nav>
+
+    <!-- Contenedor del contenido de cada vista -->
+    <main class="main-container">
+        {% block content %}
+        {% endblock %}
+    </main>
+
+</body>
+</html>

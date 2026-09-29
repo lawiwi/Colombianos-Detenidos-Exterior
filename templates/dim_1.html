@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block title %}Etapa 1 - Análisis{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style_dashboards.css') }}">
+{% endblock %}
+
+{% block content %}
+<!-- El contenedor Grid que NO colapsa -->
+<div class="dashboard-grid">
+    
+    <!-- COLUMNA IZQUIERDA: Filtros -->
+    <aside class="cyber-panel sidebar-left">
+        <h3 class="panel-title">FILTROS</h3>
+        <div class="filter-group">
+            <label>Rango de Datos:</label>
+            <input type="date" class="cyber-input">
+        </div>
+        <div class="filter-group">
+            <label>Variable a Analizar:</label>
+            <select class="cyber-input">
+                <option>Seleccionar...</option>
+                <option>Contratos</option>
+                <option>Cuantías</option>
+            </select>
+        </div>
+        <button class="cyber-btn w-100">APLICAR</button>
+    </aside>
+
+    <!-- COLUMNA CENTRAL: Gráfico y KPIs -->
+    <main class="main-dashboard">
+        <div class="kpi-container">
+            <div class="cyber-panel kpi-card">
+                <p class="kpi-label">TOTAL REGISTROS</p>
+                <h2 class="kpi-value">1,045,200</h2>
+            </div>
+            <div class="cyber-panel kpi-card">
+                <p class="kpi-label">VALOR NULO (%)</p>
+                <h2 class="kpi-value warning">12.4%</h2>
+            </div>
+        </div>
+
+        <div class="cyber-panel chart-panel">
+            <h3 class="panel-title">VISUALIZACIÓN PRINCIPAL - ETAPA 1</h3>
+            <!-- Aquí irá el Iframe de PowerBI o tu gráfica -->
+            <div class="chart-placeholder">
+                <p>[ Área para incrustar el iframe de la gráfica ]</p>
+            </div>
+        </div>
+    </main>
+
+    <!-- COLUMNA DERECHA: Conclusiones -->
+    <aside class="cyber-panel sidebar-right">
+        <h3 class="panel-title">CONCLUSIONES</h3>
+        <p class="analysis-text">
+            En esta etapa se observa una alta concentración de datos en ciertos sectores. 
+            Es necesario aplicar técnicas de imputación para los valores faltantes antes de pasar a la minería.
+        </p>
+    </aside>
+
+</div>
+{% endblock %}

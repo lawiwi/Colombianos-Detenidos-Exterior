@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block title %}Inicio - CORE{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style_home.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="hero-section">
+    <div class="glitch-container">
+        <h1 class="glitch-text" data-text="MINERÍA">MINERÍA</h1>
+        <h1 class="glitch-text" data-text="DE DATOS">DE DATOS</h1>
+    </div>
+    
+    <div class="cyber-panel welcome-panel">
+        <h3 class="panel-title">SISTEMA INICIALIZADO</h3>
+        <p>Bienvenido al entorno de análisis. Explora las etapas del proyecto navegando por las dimensiones superiores.</p>
+        <ul class="stage-list">
+            <li><span class="neon-text">D1:</span> Etapa 1 - Perfilamiento y Calidad</li>
+            <li><span class="neon-text">D2:</span> Etapa 2 - Limpieza de Datos</li>
+            <li><span class="neon-text">D3:</span> Etapa 3 - Minería y Modelado</li>
+            <li><span class="neon-text">D4:</span> Etapa 4 - Resultados y Conclusiones</li>
+        </ul>
+        <a href="{{ url_for('dimension_1') }}" class="cyber-btn">INICIAR ETAPA 1</a>
+    </div>
+</div>
+{% endblock %}

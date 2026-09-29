@@ -1,0 +1,53 @@
+/* LA MAGIA RESPONSIVA DE GRID */
+.dashboard-grid {
+    display: grid;
+    /* Escritorio: 3 columnas (250px izquierda, el resto al centro, 250px derecha) */
+    grid-template-columns: 250px 1fr 250px;
+    gap: 20px;
+    align-items: start;
+}
+
+/* --- Elementos internos del Dashboard --- */
+.filter-group { margin-bottom: 15px; }
+.filter-group label { display: block; font-size: 0.85rem; color: #aaa; margin-bottom: 5px; }
+.cyber-input {
+    width: 100%; padding: 8px;
+    background: rgba(0,0,0,0.5);
+    border: 1px solid var(--neon-cyan);
+    color: var(--text-main); font-family: 'Share Tech Mono', monospace;
+}
+
+.kpi-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-bottom: 20px; }
+.kpi-card { padding: 15px; text-align: center; }
+.kpi-label { font-size: 0.8rem; color: #888; }
+.kpi-value { font-size: 2rem; color: #fff; }
+
+.chart-panel { height: 500px; display: flex; flex-direction: column; }
+.chart-placeholder { flex-grow: 1; border: 1px dashed #444; display: grid; place-items: center; color: #555; }
+.w-100 { width: 100%; }
+.analysis-text { line-height: 1.6; font-size: 0.95rem; }
+
+/* MEDIA QUERIES (Evitan que colapse al achicar la ventana) */
+
+/* Pantallas medianas (Tablets/Laptops pequeñas) */
+@media (max-width: 1024px) {
+    .dashboard-grid {
+        /* Pasamos a 2 columnas, la derecha se va abajo */
+        grid-template-columns: 250px 1fr;
+    }
+    .sidebar-right {
+        /* Hacemos que la conclusión ocupe todo el ancho abajo */
+        grid-column: 1 / -1; 
+    }
+}
+
+/* Pantallas pequeñas (Celulares) */
+@media (max-width: 768px) {
+    .dashboard-grid {
+        /* Todo se vuelve 1 sola columna vertical */
+        grid-template-columns: 1fr; 
+    }
+    .cyber-navbar { flex-direction: column; padding: 10px; }
+    .nav-links { margin-top: 10px; }
+    .glitch-text { font-size: 2.5rem; }
+}
