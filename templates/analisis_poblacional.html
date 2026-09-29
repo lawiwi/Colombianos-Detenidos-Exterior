@@ -1,0 +1,1128 @@
+{% extends "base.html" %}
+
+{% block title %}
+Análisis Poblacional
+{% endblock %}
+
+
+{% block extra_css %}
+
+<link rel="stylesheet"
+      href="{{ url_for(
+          'static',
+          filename='css/style_analysis.css'
+      ) }}">
+
+{% endblock %}
+
+
+{% block content %}
+
+<div class="na-wrapper">
+
+
+    <!-- ======================================================
+         HERO
+    ======================================================= -->
+
+    <header class="na-hero">
+
+        <p class="na-kicker">
+            Dimensión Poblacional · Análisis Completo
+        </p>
+
+        <h1 class="na-title">
+            COMPOSICIÓN Y DISTRIBUCIÓN POBLACIONAL
+        </h1>
+
+        <p class="na-question">
+            ¿Cómo está compuesta y distribuida la población de
+            ciudadanos colombianos detenidos en el exterior según
+            sus principales características sociodemográficas y
+            penales?
+        </p>
+
+        <div class="na-meta">
+            <span>Fuente: MinExterior</span>
+            <span>388.000 registros</span>
+            <span>12 variables</span>
+            <span>Dimensión poblacional</span>
+        </div>
+
+        <a href="{{ url_for('dimension_poblacional') }}"
+           class="na-back-btn">
+            ← VOLVER AL TABLERO
+        </a>
+
+    </header>
+
+
+    <!-- ======================================================
+         01 · METODOLOGÍA
+    ======================================================= -->
+
+    <section class="na-section">
+
+        <div class="na-section-header">
+            <span class="na-section-number">01</span>
+            <h2 class="na-section-title">METODOLOGÍA</h2>
+        </div>
+
+        <div class="na-panel">
+
+            <p class="analysis-text">
+                Para caracterizar la población se consultó el
+                conjunto de datos a través de la API pública de
+                Datos Abiertos Colombia (ID
+                <code>e97j-vuf7</code>). Se realizaron agregaciones
+                sobre la variable <em>CANTIDAD</em>, que representa
+                el número de detenidos reportados en cada registro.
+                El total acumulado de detenciones en el período
+                cubierto asciende a <strong>1.862.305</strong>.
+            </p>
+
+            <p class="analysis-text">
+                Es importante señalar que el dataset contiene
+                <strong>388.000 registros</strong> y que la suma de
+                <em>CANTIDAD</em> supera esa cifra porque cada
+                registro puede agrupar múltiples detenidos.
+                Además, la información se publica mensualmente,
+                por lo que los totales son acumulados históricos.
+            </p>
+
+        </div>
+
+    </section>
+
+
+    <!-- ======================================================
+         02 · ANÁLISIS POR VARIABLES PRINCIPALES
+    ======================================================= -->
+
+    <section class="na-section">
+
+        <div class="na-section-header">
+            <span class="na-section-number">02</span>
+            <h2 class="na-section-title">
+                ANÁLISIS POR VARIABLES PRINCIPALES
+            </h2>
+        </div>
+
+
+        <!-- 2.1 GÉNERO -->
+
+        <div class="na-variable-block">
+
+            <h3 class="na-variable-title">
+                <span>2.1</span>GÉNERO
+            </h3>
+
+            <table class="na-table">
+                <thead>
+                    <tr>
+                        <th>Categoría</th>
+                        <th class="num">Personas</th>
+                        <th class="pct">Participación</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Masculino</td>
+                        <td class="num">1.627.708</td>
+                        <td class="pct">
+                            87,40 %
+                            <span class="na-bar"><span style="width:87.4%"></span></span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Femenino</td>
+                        <td class="num">233.899</td>
+                        <td class="pct">
+                            12,56 %
+                            <span class="na-bar"><span style="width:12.56%"></span></span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Otro</td>
+                        <td class="num">410</td>
+                        <td class="pct">
+                            0,02 %
+                            <span class="na-bar"><span style="width:0.5%"></span></span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Desconocido</td>
+                        <td class="num">267</td>
+                        <td class="pct">
+                            0,01 %
+                            <span class="na-bar"><span style="width:0.3%"></span></span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>No binario</td>
+                        <td class="num">21</td>
+                        <td class="pct">
+                            0,001 %
+                            <span class="na-bar"><span style="width:0.1%"></span></span>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <p class="na-note">
+                <strong>Grupo predominante:</strong> Masculino (87,4 %).
+                <br>
+                <strong>Grupo minoritario:</strong> No binario (21 registros).
+                La población está fuertemente masculinizada, con una
+                participación femenina cercana al 13 %. Las categorías
+                <em>Otro</em>, <em>No binario</em> y <em>Desconocido</em>
+                son marginales.
+            </p>
+
+        </div>
+
+
+        <!-- 2.2 GRUPO DE EDAD -->
+
+        <div class="na-variable-block">
+
+            <h3 class="na-variable-title">
+                <span>2.2</span>GRUPO DE EDAD
+            </h3>
+
+            <table class="na-table">
+                <thead>
+                    <tr>
+                        <th>Categoría</th>
+                        <th class="num">Personas</th>
+                        <th class="pct">Participación</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Adulto</td>
+                        <td class="num">940.342</td>
+                        <td class="pct">
+                            50,49 %
+                            <span class="na-bar"><span style="width:50.49%"></span></span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Desconocido</td>
+                        <td class="num">649.594</td>
+                        <td class="pct">
+                            34,88 %
+                            <span class="na-bar"><span style="width:34.88%"></span></span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Adulto mayor</td>
+                        <td class="num">135.069</td>
+                        <td class="pct">
+                            7,25 %
+                            <span class="na-bar"><span style="width:7.25%"></span></span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Adulto joven</td>
+                        <td class="num">133.464</td>
+                        <td class="pct">
+                            7,17 %
+                            <span class="na-bar"><span style="width:7.17%"></span></span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Primera infancia</td>
+                        <td class="num">1.667</td>
+                        <td class="pct">
+                            0,09 %
+                            <span class="na-bar"><span style="width:0.9%"></span></span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Adolescente</td>
+                        <td class="num">1.111</td>
+                        <td class="pct">
+                            0,06 %
+                            <span class="na-bar"><span style="width:0.6%"></span></span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Infante</td>
+                        <td class="num">1.058</td>
+                        <td class="pct">
+                            0,06 %
+                            <span class="na-bar"><span style="width:0.6%"></span></span>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <p class="na-note">
+                <strong>Grupo predominante:</strong> Adulto (50,5 %).
+                <br>
+                <strong>Grupos minoritarios:</strong> Infante, Adolescente
+                y Primera infancia (menos del 0,1 % cada uno).
+                Destaca que más de un tercio de los registros tienen edad
+                <em>desconocida</em>, lo que limita la caracterización
+                etaria.
+            </p>
+
+        </div>
+
+
+        <!-- 2.3 DELITO -->
+
+        <div class="na-variable-block">
+
+            <h3 class="na-variable-title">
+                <span>2.3</span>DELITO
+            </h3>
+
+            <table class="na-table">
+                <thead>
+                    <tr>
+                        <th>Delito</th>
+                        <th class="num">Personas</th>
+                        <th class="pct">Participación</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Narcotráfico</td>
+                        <td class="num">822.660</td>
+                        <td class="pct">
+                            44,17 %
+                            <span class="na-bar"><span style="width:44.17%"></span></span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Desconocido</td>
+                        <td class="num">276.517</td>
+                        <td class="pct">
+                            14,85 %
+                            <span class="na-bar"><span style="width:14.85%"></span></span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Robo / Hurto</td>
+                        <td class="num">236.323</td>
+                        <td class="pct">
+                            12,69 %
+                            <span class="na-bar"><span style="width:12.69%"></span></span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Homicidio / Tentativa</td>
+                        <td class="num">91.041</td>
+                        <td class="pct">
+                            4,89 %
+                            <span class="na-bar"><span style="width:4.89%"></span></span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Otros</td>
+                        <td class="num">70.621</td>
+                        <td class="pct">
+                            3,79 %
+                            <span class="na-bar"><span style="width:3.79%"></span></span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>No reporta / Confidencialidad</td>
+                        <td class="num">53.713</td>
+                        <td class="pct">
+                            2,88 %
+                            <span class="na-bar"><span style="width:2.88%"></span></span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Delitos sexuales</td>
+                        <td class="num">52.130</td>
+                        <td class="pct">
+                            2,80 %
+                            <span class="na-bar"><span style="width:2.80%"></span></span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Porte ilegal de armas</td>
+                        <td class="num">35.618</td>
+                        <td class="pct">
+                            1,91 %
+                            <span class="na-bar"><span style="width:1.91%"></span></span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Delito migratorio</td>
+                        <td class="num">31.658</td>
+                        <td class="pct">
+                            1,70 %
+                            <span class="na-bar"><span style="width:1.70%"></span></span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Secuestro</td>
+                        <td class="num">24.979</td>
+                        <td class="pct">
+                            1,34 %
+                            <span class="na-bar"><span style="width:1.34%"></span></span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Fraude / Estafa</td>
+                        <td class="num">24.307</td>
+                        <td class="pct">
+                            1,31 %
+                            <span class="na-bar"><span style="width:1.31%"></span></span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Crimen organizado</td>
+                        <td class="num">24.016</td>
+                        <td class="pct">
+                            1,29 %
+                            <span class="na-bar"><span style="width:1.29%"></span></span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Lavado de activos</td>
+                        <td class="num">14.993</td>
+                        <td class="pct">
+                            0,81 %
+                            <span class="na-bar"><span style="width:0.81%"></span></span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Contrabando</td>
+                        <td class="num">11.583</td>
+                        <td class="pct">
+                            0,62 %
+                            <span class="na-bar"><span style="width:0.62%"></span></span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Violencia intrafamiliar</td>
+                        <td class="num">9.310</td>
+                        <td class="pct">
+                            0,50 %
+                            <span class="na-bar"><span style="width:0.50%"></span></span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Delitos políticos</td>
+                        <td class="num">500</td>
+                        <td class="pct">
+                            0,03 %
+                            <span class="na-bar"><span style="width:0.3%"></span></span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Falso testimonio</td>
+                        <td class="num">323</td>
+                        <td class="pct">
+                            0,02 %
+                            <span class="na-bar"><span style="width:0.2%"></span></span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Celebración indebida de contratos</td>
+                        <td class="num">170</td>
+                        <td class="pct">
+                            0,01 %
+                            <span class="na-bar"><span style="width:0.1%"></span></span>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <p class="na-note">
+                <strong>Grupo predominante:</strong> Narcotráfico (44,2 %).
+                <br>
+                <strong>Grupos minoritarios:</strong> Delitos políticos,
+                falso testimonio y celebración indebida de contratos
+                (menos del 0,03 %). El narcotráfico es, con amplia
+                diferencia, el delito más frecuente. La categoría
+                <em>Desconocido</em> (14,9 %) refleja una limitación
+                importante en la calidad del dato.
+            </p>
+
+        </div>
+
+
+        <!-- 2.4 PAÍS DE PRISIÓN -->
+
+        <div class="na-variable-block">
+
+            <h3 class="na-variable-title">
+                <span>2.4</span>PAÍS DE PRISIÓN (TOP 15)
+            </h3>
+
+            <table class="na-table">
+                <thead>
+                    <tr>
+                        <th>País</th>
+                        <th class="num">Personas</th>
+                        <th class="pct">Participación</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Desconocido</td>
+                        <td class="num">1.030.039</td>
+                        <td class="pct">
+                            55,31 %
+                            <span class="na-bar"><span style="width:55.31%"></span></span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>España</td>
+                        <td class="num">148.396</td>
+                        <td class="pct">
+                            7,97 %
+                            <span class="na-bar"><span style="width:7.97%"></span></span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Ecuador</td>
+                        <td class="num">135.650</td>
+                        <td class="pct">
+                            7,28 %
+                            <span class="na-bar"><span style="width:7.28%"></span></span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Estados Unidos</td>
+                        <td class="num">134.528</td>
+                        <td class="pct">
+                            7,22 %
+                            <span class="na-bar"><span style="width:7.22%"></span></span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Venezuela</td>
+                        <td class="num">117.741</td>
+                        <td class="pct">
+                            6,32 %
+                            <span class="na-bar"><span style="width:6.32%"></span></span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Chile</td>
+                        <td class="num">54.836</td>
+                        <td class="pct">
+                            2,94 %
+                            <span class="na-bar"><span style="width:2.94%"></span></span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Extradición</td>
+                        <td class="num">42.637</td>
+                        <td class="pct">
+                            2,29 %
+                            <span class="na-bar"><span style="width:2.29%"></span></span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Panamá</td>
+                        <td class="num">41.352</td>
+                        <td class="pct">
+                            2,22 %
+                            <span class="na-bar"><span style="width:2.22%"></span></span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Perú</td>
+                        <td class="num">27.351</td>
+                        <td class="pct">
+                            1,47 %
+                            <span class="na-bar"><span style="width:1.47%"></span></span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>México</td>
+                        <td class="num">22.206</td>
+                        <td class="pct">
+                            1,19 %
+                            <span class="na-bar"><span style="width:1.19%"></span></span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Argentina</td>
+                        <td class="num">16.907</td>
+                        <td class="pct">
+                            0,91 %
+                            <span class="na-bar"><span style="width:0.91%"></span></span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Costa Rica</td>
+                        <td class="num">11.863</td>
+                        <td class="pct">
+                            0,64 %
+                            <span class="na-bar"><span style="width:0.64%"></span></span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Italia</td>
+                        <td class="num">9.487</td>
+                        <td class="pct">
+                            0,51 %
+                            <span class="na-bar"><span style="width:0.51%"></span></span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Brasil</td>
+                        <td class="num">7.380</td>
+                        <td class="pct">
+                            0,40 %
+                            <span class="na-bar"><span style="width:0.40%"></span></span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Bolivia</td>
+                        <td class="num">7.172</td>
+                        <td class="pct">
+                            0,39 %
+                            <span class="na-bar"><span style="width:0.39%"></span></span>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <p class="na-note">
+                <strong>Grupo predominante:</strong> Desconocido (55,3 %).
+                <br>
+                <strong>País predominante entre los conocidos:</strong>
+                España (8,0 %). Más de la mitad de los registros no
+                especifican el país de prisión, lo que constituye la
+                principal limitación para el análisis geográfico.
+            </p>
+
+        </div>
+
+
+        <!-- 2.5 SITUACIÓN JURÍDICA -->
+
+        <div class="na-variable-block">
+
+            <h3 class="na-variable-title">
+                <span>2.5</span>SITUACIÓN JURÍDICA
+            </h3>
+
+            <table class="na-table">
+                <thead>
+                    <tr>
+                        <th>Categoría</th>
+                        <th class="num">Personas</th>
+                        <th class="pct">Participación</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Condenado</td>
+                        <td class="num">929.815</td>
+                        <td class="pct">
+                            49,93 %
+                            <span class="na-bar"><span style="width:49.93%"></span></span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>En investigación</td>
+                        <td class="num">695.060</td>
+                        <td class="pct">
+                            37,32 %
+                            <span class="na-bar"><span style="width:37.32%"></span></span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>En juicio</td>
+                        <td class="num">160.697</td>
+                        <td class="pct">
+                            8,63 %
+                            <span class="na-bar"><span style="width:8.63%"></span></span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>No reporta / Confidencialidad</td>
+                        <td class="num">39.123</td>
+                        <td class="pct">
+                            2,10 %
+                            <span class="na-bar"><span style="width:2.10%"></span></span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>En espera de deportación</td>
+                        <td class="num">36.227</td>
+                        <td class="pct">
+                            1,95 %
+                            <span class="na-bar"><span style="width:1.95%"></span></span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Extraditado</td>
+                        <td class="num">1.383</td>
+                        <td class="pct">
+                            0,07 %
+                            <span class="na-bar"><span style="width:0.7%"></span></span>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <p class="na-note">
+                <strong>Grupo predominante:</strong> Condenado (49,9 %).
+                <br>
+                <strong>Grupo minoritario:</strong> Extraditado (0,07 %).
+                Casi la mitad de la población ya tiene sentencia
+                condenatoria; un porcentaje importante aún está en
+                investigación o en juicio.
+            </p>
+
+        </div>
+
+
+        <!-- 2.6 EXTRADITADO / REPATRIADO -->
+
+        <div class="na-variable-block">
+
+            <h3 class="na-variable-title">
+                <span>2.6</span>CONDICIÓN DE EXTRADITADO O REPATRIADO
+            </h3>
+
+            <table class="na-table">
+                <thead>
+                    <tr>
+                        <th>Categoría</th>
+                        <th class="num">Personas</th>
+                        <th class="pct">Participación</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Desconocido</td>
+                        <td class="num">1.774.643</td>
+                        <td class="pct">
+                            95,29 %
+                            <span class="na-bar"><span style="width:95.29%"></span></span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Extradición</td>
+                        <td class="num">86.649</td>
+                        <td class="pct">
+                            4,65 %
+                            <span class="na-bar"><span style="width:4.65%"></span></span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Repatriación</td>
+                        <td class="num">904</td>
+                        <td class="pct">
+                            0,05 %
+                            <span class="na-bar"><span style="width:0.5%"></span></span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Extradición y repatriación</td>
+                        <td class="num">109</td>
+                        <td class="pct">
+                            0,01 %
+                            <span class="na-bar"><span style="width:0.1%"></span></span>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <p class="na-note">
+                <strong>Grupo predominante:</strong> Desconocido (95,3 %).
+                <br>
+                La gran mayoría de los registros no reportan si el
+                detenido fue extraditado o repatriado, lo que impide
+                un análisis robusto de esta variable.
+            </p>
+
+        </div>
+
+    </section>
+
+
+    <!-- ======================================================
+         03 · SÍNTESIS — PREDOMINANTES Y MINORITARIOS
+    ======================================================= -->
+
+    <section class="na-section">
+
+        <div class="na-section-header">
+            <span class="na-section-number">03</span>
+            <h2 class="na-section-title">
+                SÍNTESIS · PREDOMINANTES Y MINORITARIOS
+            </h2>
+        </div>
+
+        <div class="na-panel">
+
+            <p class="analysis-text">
+                Los siguientes cuadros resumen los grupos
+                <em>predominantes</em> y <em>minoritarios</em> en
+                cada variable clave del dataset.
+            </p>
+
+            <div class="na-badges">
+
+                <div class="na-badge-card is-predom">
+                    <span class="na-badge-label">Predominante · Género</span>
+                    <span class="na-badge-value">Masculino</span>
+                    <span class="na-badge-meta">87,40 % de la población</span>
+                </div>
+
+                <div class="na-badge-card is-predom">
+                    <span class="na-badge-label">Predominante · Edad</span>
+                    <span class="na-badge-value">Adulto</span>
+                    <span class="na-badge-meta">50,49 % (casos con edad conocida)</span>
+                </div>
+
+                <div class="na-badge-card is-predom">
+                    <span class="na-badge-label">Predominante · Delito</span>
+                    <span class="na-badge-value">Narcotráfico</span>
+                    <span class="na-badge-meta">44,17 % del total</span>
+                </div>
+
+                <div class="na-badge-card is-predom">
+                    <span class="na-badge-label">Predominante · País (conocido)</span>
+                    <span class="na-badge-value">España</span>
+                    <span class="na-badge-meta">7,97 % del total</span>
+                </div>
+
+                <div class="na-badge-card is-predom">
+                    <span class="na-badge-label">Predominante · Situación jurídica</span>
+                    <span class="na-badge-value">Condenado</span>
+                    <span class="na-badge-meta">49,93 % del total</span>
+                </div>
+
+                <div class="na-badge-card is-predom">
+                    <span class="na-badge-label">Predominante · Extradición</span>
+                    <span class="na-badge-value">No reportado</span>
+                    <span class="na-badge-meta">95,29 % del total</span>
+                </div>
+
+                <div class="na-badge-card is-minor">
+                    <span class="na-badge-label">Minoritario · Género</span>
+                    <span class="na-badge-value">No binario</span>
+                    <span class="na-badge-meta">21 registros</span>
+                </div>
+
+                <div class="na-badge-card is-minor">
+                    <span class="na-badge-label">Minoritario · Edad</span>
+                    <span class="na-badge-value">Infante</span>
+                    <span class="na-badge-meta">1.058 registros (0,06 %)</span>
+                </div>
+
+                <div class="na-badge-card is-minor">
+                    <span class="na-badge-label">Minoritario · Delito</span>
+                    <span class="na-badge-value">Celebración indebida</span>
+                    <span class="na-badge-meta">170 registros (0,01 %)</span>
+                </div>
+
+                <div class="na-badge-card is-minor">
+                    <span class="na-badge-label">Minoritario · Situación jurídica</span>
+                    <span class="na-badge-value">Extraditado</span>
+                    <span class="na-badge-meta">1.383 registros (0,07 %)</span>
+                </div>
+
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <!-- ======================================================
+         04 · TABLA RESUMEN
+    ======================================================= -->
+
+    <section class="na-section">
+
+        <div class="na-section-header">
+            <span class="na-section-number">04</span>
+            <h2 class="na-section-title">
+                DISTRIBUCIÓN DE LAS VARIABLES PRINCIPALES
+            </h2>
+        </div>
+
+        <div class="na-panel">
+
+            <p class="analysis-text">
+                Resumen comparativo de la categoría principal y
+                secundaria para cada variable del dataset.
+            </p>
+
+            <table class="na-table">
+                <thead>
+                    <tr>
+                        <th>Variable</th>
+                        <th>Categoría principal</th>
+                        <th class="pct">%</th>
+                        <th>Categoría secundaria</th>
+                        <th class="pct">%</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Género</td>
+                        <td>Masculino</td>
+                        <td class="pct">87,4</td>
+                        <td>Femenino</td>
+                        <td class="pct">12,6</td>
+                    </tr>
+                    <tr>
+                        <td>Grupo de edad</td>
+                        <td>Adulto</td>
+                        <td class="pct">50,5</td>
+                        <td>Desconocido</td>
+                        <td class="pct">34,9</td>
+                    </tr>
+                    <tr>
+                        <td>Delito</td>
+                        <td>Narcotráfico</td>
+                        <td class="pct">44,2</td>
+                        <td>Desconocido</td>
+                        <td class="pct">14,9</td>
+                    </tr>
+                    <tr>
+                        <td>País de prisión</td>
+                        <td>Desconocido</td>
+                        <td class="pct">55,3</td>
+                        <td>España</td>
+                        <td class="pct">8,0</td>
+                    </tr>
+                    <tr>
+                        <td>Situación jurídica</td>
+                        <td>Condenado</td>
+                        <td class="pct">49,9</td>
+                        <td>En investigación</td>
+                        <td class="pct">37,3</td>
+                    </tr>
+                    <tr>
+                        <td>Extraditado / Repatriado</td>
+                        <td>Desconocido</td>
+                        <td class="pct">95,3</td>
+                        <td>Extradición</td>
+                        <td class="pct">4,7</td>
+                    </tr>
+                </tbody>
+            </table>
+
+        </div>
+
+    </section>
+
+
+    <!-- ======================================================
+         05 · CARACTERÍSTICAS GENERALES
+    ======================================================= -->
+
+    <section class="na-section">
+
+        <div class="na-section-header">
+            <span class="na-section-number">05</span>
+            <h2 class="na-section-title">
+                CARACTERÍSTICAS GENERALES DE LA POBLACIÓN
+            </h2>
+        </div>
+
+        <ol class="na-list">
+
+            <li>
+                <strong>Perfil mayoritario:</strong> hombre adulto,
+                condenado por narcotráfico, detenido en España
+                (entre los países identificados).
+            </li>
+
+            <li>
+                <strong>Alta masculinización:</strong> la relación
+                hombre-mujer es de aproximadamente
+                <span class="na-stat">7:1</span>.
+            </li>
+
+            <li>
+                <strong>Concentración en delitos de drogas:</strong>
+                el narcotráfico duplica en frecuencia al siguiente
+                delito (robo/hurto).
+            </li>
+
+            <li>
+                <strong>Alta proporción de datos faltantes:</strong>
+                las categorías <em>Desconocido</em> superan el 50 %
+                en país de prisión y el 95 % en
+                extradición/repatriación.
+            </li>
+
+            <li>
+                <strong>Predominio de condenados:</strong> casi la
+                mitad de los detenidos ya tienen sentencia, mientras
+                que un tercio está en fase de investigación.
+            </li>
+
+            <li>
+                <strong>Distribución geográfica concentrada:</strong>
+                España, Ecuador, Estados Unidos y Venezuela reúnen
+                la mayor parte de los casos con país conocido.
+            </li>
+
+            <li>
+                <strong>Presencia de grupos vulnerables:</strong>
+                aunque minoritarios, se registran casos de
+                adolescentes, infantes y primera infancia, así como
+                de personas no binarias, lo que requiere atención
+                específica.
+            </li>
+
+        </ol>
+
+    </section>
+
+
+    <!-- ======================================================
+         06 · LIMITACIONES
+    ======================================================= -->
+
+    <section class="na-section">
+
+        <div class="na-section-header">
+            <span class="na-section-number">06</span>
+            <h2 class="na-section-title">
+                LIMITACIONES Y OBSERVACIONES
+            </h2>
+        </div>
+
+        <div class="na-callout">
+
+            <strong>ADVERTENCIAS DEL ANÁLISIS</strong>
+
+            <p>
+                <em>Calidad del dato:</em> la alta frecuencia de
+                <em>Desconocido</em> en variables clave (país, edad,
+                delito) sugiere problemas de registro que deben
+                considerarse al interpretar los resultados.
+            </p>
+
+            <p>
+                <em>Inconsistencias de codificación:</em> se detectaron
+                valores duplicados por errores de codificación
+                (p. ej. <code>ESPAÑA</code> y <code>ESPA?A</code>,
+                <code>NARCOTRÁFICO</code> y <code>NARCOTR?FICO</code>),
+                que fueron normalizados para el análisis.
+            </p>
+
+            <p>
+                <em>Naturaleza acumulativa:</em> al ser un dataset
+                histórico mensual, los totales representan detenciones
+                acumuladas, no una fotografía instantánea.
+            </p>
+
+            <p>
+                <em>Unidad de análisis:</em> la variable
+                <code>CANTIDAD</code> agrupa detenidos, por lo que
+                los porcentajes se refieren al número de personas,
+                no al número de registros.
+            </p>
+
+        </div>
+
+    </section>
+
+
+    <!-- ======================================================
+         07 · DECISIÓN SUSTENTADA
+    ======================================================= -->
+
+    <section class="na-section">
+
+        <div class="na-section-header">
+            <span class="na-section-number">07</span>
+            <h2 class="na-section-title">
+                POSIBLE DECISIÓN SUSTENTADA
+            </h2>
+        </div>
+
+        <div class="na-panel">
+
+            <p class="analysis-text">
+                Dado que la población es mayoritariamente
+                <strong>masculina</strong>, <strong>adulta</strong> y
+                <strong>condenada por narcotráfico</strong>, se
+                recomienda priorizar programas de prevención del
+                delito de drogas y fortalecer la asistencia jurídica
+                consular en los países con mayor concentración de
+                casos identificados
+                (<em>España, Ecuador, Estados Unidos y Venezuela</em>).
+            </p>
+
+            <p class="analysis-text">
+                Asimismo, el alto porcentaje de casos
+                <em>en investigación</em> (37 %) indica la necesidad
+                de reforzar el acompañamiento jurídico en etapas
+                procesales tempranas, no solo en la ejecución de la
+                pena.
+            </p>
+
+        </div>
+
+    </section>
+
+
+    <!-- ======================================================
+         CIERRE
+    ======================================================= -->
+
+    <div style="text-align:center; margin-top:60px;">
+
+        <a href="{{ url_for('dimension_poblacional') }}"
+           class="na-back-btn">
+            ← VOLVER AL TABLERO
+        </a>
+
+    </div>
+
+
+</div>
+
+
+<!-- ======================================================
+     SCROLL REVEAL
+====================================================== -->
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+
+    const elements = document.querySelectorAll(
+        '.na-section, .na-variable-block, .na-list li'
+    );
+
+    if (!('IntersectionObserver' in window)) {
+        elements.forEach(function (el) {
+            el.classList.add('is-visible');
+        });
+        return;
+    }
+
+    const observer = new IntersectionObserver(
+        function (entries) {
+            entries.forEach(function (entry) {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('is-visible');
+                    observer.unobserve(entry.target);
+                }
+            });
+        },
+        { threshold: 0.12, rootMargin: '0px 0px -40px 0px' }
+    );
+
+    elements.forEach(function (el) {
+        observer.observe(el);
+    });
+
+});
+</script>
+
+{% endblock %}
