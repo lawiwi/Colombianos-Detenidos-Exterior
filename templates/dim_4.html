@@ -1,0 +1,232 @@
+{% extends "base.html" %}
+
+{% block title %}Dimensión 4 · Análisis relacional{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style_dashboards.css') }}">
+<style>
+    .relational-dashboard { display: grid; gap: 22px; }
+    .relational-heading { padding: 26px; }
+    .relational-heading h1 { margin-top: 0; color: var(--neon-cyan); }
+    .relational-heading p { line-height: 1.65; }
+    .relational-layout { display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 22px; align-items: start; }
+    .relational-panel { padding: 22px; min-width: 0; }
+    .relational-panel h2, .relational-panel h3 { color: var(--neon-cyan); margin-top: 0; }
+    .relational-filter { position: sticky; top: 88px; }
+    .relational-filter select { width: 100%; min-height: 150px; }
+    .relational-filter select[name="categoria"] { min-height: 220px; }
+    .relational-filter option { padding: 5px; }
+    .relational-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
+    .relational-button { display: inline-block; padding: 10px 16px; border: 1px solid var(--neon-cyan); background: rgba(0,240,255,.12); color: #fff; text-decoration: none; cursor: pointer; font: inherit; }
+    .relational-button:hover { box-shadow: 0 0 14px rgba(0,240,255,.3); }
+    .relational-kpis { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+    .relational-kpi { padding: 18px; text-align: center; }
+    .relational-kpi span { display: block; color: #aaa; font-size: .88rem; }
+    .relational-kpi strong { display: block; margin: 9px 0; color: #fff; font-size: clamp(1.15rem, 2vw, 1.8rem); overflow-wrap: anywhere; }
+    .relational-kpi small { color: var(--neon-cyan); }
+    .relational-figure { overflow: hidden; }
+    .relational-figure h3 { margin-bottom: 2px; }
+    .relational-figure p, .relational-copy { line-height: 1.65; }
+    .relational-figure .plotly-graph-div { width: 100% !important; }
+    .relational-table-wrap { overflow-x: auto; }
+    .relational-table { width: 100%; border-collapse: collapse; margin: 12px 0; }
+    .relational-table th, .relational-table td { padding: 9px 11px; border: 1px solid rgba(0,240,255,.22); text-align: left; }
+    .relational-table th { color: var(--neon-cyan); }
+    .relational-details { margin-top: 16px; }
+    .relational-details summary { color: var(--neon-cyan); cursor: pointer; font-weight: bold; padding: 7px 0; }
+    .relational-note { border-left: 3px solid var(--neon-cyan); padding: 12px 16px; line-height: 1.65; }
+    @media (max-width: 980px) {
+        .relational-layout { grid-template-columns: 1fr; }
+        .relational-filter { position: static; }
+        .relational-filter select, .relational-filter select[name="categoria"] { min-height: 120px; }
+    }
+    @media (max-width: 620px) {
+        .relational-kpis { grid-template-columns: 1fr; }
+        .relational-panel { padding: 15px; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="relational-dashboard">
+    <header class="relational-heading cyber-panel">
+        <h1>Tablero de Análisis Relacional y Multivariado: Detenciones de Colombianos en el Exterior</h1>
+        <p><strong>Pregunta de análisis:</strong> ¿Qué diferencias o relaciones evidentes pueden identificarse al analizar conjuntamente el país de prisión, el delito cometido, la situación jurídica y el género de los detenidos?</p>
+    </header>
+
+    <div class="relational-layout">
+        <aside class="relational-panel relational-filter cyber-panel">
+            <h2>Filtros interactivos</h2>
+            <form method="get" action="{{ url_for('dimension_4') }}">
+                <div class="filter-group">
+                    <label for="pais">PAIS PRISIÓN</label>
+                    <select id="pais" name="pais" class="cyber-input" multiple>
+                        {% for pais in paises %}
+                        <option value="{{ pais }}" {% if pais in paises_seleccionados %}selected{% endif %}>{{ pais }}</option>
+                        {% endfor %}
+                    </select>
+                    <small>Usa Ctrl (Windows) o Cmd (Mac) para seleccionar varios países.</small>
+                </div>
+                <div class="filter-group">
+                    <label for="categoria">DELITO o SITUACIÓN JURÍDICA</label>
+                    <select id="categoria" name="categoria" class="cyber-input" multiple>
+                        <optgroup label="Delito">
+                            {% for delito in delitos %}
+                            {% set option_value = "DELITO::" ~ delito %}
+                            <option value="{{ option_value }}" {% if option_value in categorias_seleccionadas %}selected{% endif %}>{{ delito }}</option>
+                            {% endfor %}
+                        </optgroup>
+                        <optgroup label="Situación jurídica">
+                            {% for situacion in situaciones %}
+                            {% set option_value = "SITUACION::" ~ situacion %}
+                            <option value="{{ option_value }}" {% if option_value in categorias_seleccionadas %}selected{% endif %}>{{ situacion }}</option>
+                            {% endfor %}
+                        </optgroup>
+                    </select>
+                    <small>Las selecciones de delito y situación se combinan como filtros.</small>
+                </div>
+                <div class="relational-actions">
+                    <button class="relational-button" type="submit">Aplicar filtros</button>
+                    <a class="relational-button" href="{{ url_for('dimension_4') }}">Limpiar</a>
+                </div>
+            </form>
+        </aside>
+
+        <div class="relational-dashboard">
+            <section class="relational-panel cyber-panel">
+                <h2>Variables utilizadas</h2>
+                <div class="relational-table-wrap">
+                    <table class="relational-table">
+                        <thead><tr><th>Variable</th><th>Tipo</th><th>Descripción</th></tr></thead>
+                        <tbody>
+                        {% for variable, tipo, descripcion in variables %}
+                            <tr><td>{{ variable }}</td><td>{{ tipo }}</td><td>{{ descripcion }}</td></tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section>
+                <h2>Indicadores</h2>
+                <div class="relational-kpis">
+                    <article class="relational-kpi cyber-panel">
+                        <span>Total de detenidos</span><strong>{{ total }}</strong>
+                        <small>Suma de CANTIDAD para los filtros activos</small>
+                    </article>
+                    <article class="relational-kpi cyber-panel">
+                        <span>País de mayor concentración</span><strong>{{ pais_principal }}</strong>
+                        <small>{{ "%.1f"|format(porcentaje_pais_principal) }}% del total global</small>
+                    </article>
+                    <article class="relational-kpi cyber-panel">
+                        <span>Prevalencia del delito principal</span><strong>{{ delito_principal }}</strong>
+                        <small>{{ "%.1f"|format(porcentaje_delito_principal) }}% de la selección</small>
+                    </article>
+                </div>
+                <p class="relational-copy">El país con mayor concentración y su porcentaje se calculan sobre el dataset global, excluyendo países desconocidos del ranking. Los otros indicadores responden a los filtros activos.</p>
+            </section>
+
+            <section>
+                <h2>Visualizaciones relacionales</h2>
+                <article class="relational-panel relational-figure cyber-panel">
+                    <h3>Gráfica 1 · PAIS PRISIÓN × DELITO × SITUACIÓN JURÍDICA</h3>
+                    {% if graficas[0] %}{{ graficas[0]|safe }}{% else %}<p>No hay datos para los filtros seleccionados.</p>{% endif %}
+                    <p class="relational-note">{{ interpretaciones[0] }}</p>
+                </article>
+                <article class="relational-panel relational-figure cyber-panel">
+                    <h3>Gráfica 2 · DELITO × GÉNERO × SITUACIÓN JURÍDICA por país</h3>
+                    {% if graficas[1] %}{{ graficas[1]|safe }}{% else %}<p>No hay datos para los filtros seleccionados.</p>{% endif %}
+                    <p class="relational-note">{{ interpretaciones[1] }}</p>
+                </article>
+                <article class="relational-panel relational-figure cyber-panel">
+                    <h3>Gráfica 3 · GRUPO EDAD × DELITO, diferenciado por GÉNERO</h3>
+                    {% if graficas[2] %}{{ graficas[2]|safe }}{% else %}<p>No hay datos para los filtros seleccionados.</p>{% endif %}
+                    <p class="relational-note">{{ interpretaciones[2] }}</p>
+                </article>
+            </section>
+
+            <section>
+                <h2>Conocimientos evidentes</h2>
+                <article class="relational-panel cyber-panel">
+                    <details class="relational-details">
+                        <summary>Conocimiento Evidente 1 · Situación jurídica en casos de narcotráfico</summary>
+                        <div class="relational-copy">
+                            <p><strong>Pregunta:</strong> ¿Cómo se distribuye la situación jurídica de los detenidos por narcotráfico en los principales países de destino?</p>
+                            <p><strong>Variables:</strong> PAIS PRISIÓN, DELITO, SITUACIÓN JURÍDICA, CANTIDAD.</p>
+                            <p><strong>Procedimiento:</strong> Filtrar narcotráfico, agrupar por país y estado procesal, y comparar cantidad y proporción.</p>
+                            <p><strong>Evidencia:</strong> barras apiladas al 100% y tabla cruzada con cantidades y porcentajes.</p>
+                            {% if grafica_narcotrafico %}{{ grafica_narcotrafico|safe }}{% else %}<p>No hay registros de narcotráfico en los países seleccionados.</p>{% endif %}
+                            {% if tabla_narcotrafico %}
+                            <div class="relational-table-wrap"><table class="relational-table">
+                                <thead><tr><th>País</th><th>Situación jurídica</th><th>Personas</th><th>Proporción del país</th></tr></thead>
+                                <tbody>{% for fila in tabla_narcotrafico %}<tr><td>{{ fila["PAIS PRISIÓN"] }}</td><td>{{ fila["SITUACIÓN JURÍDICA"] }}</td><td>{{ "{:,.0f}".format(fila["CANTIDAD"]) }}</td><td>{{ "%.1f"|format(fila["Proporción (%)"]) }}%</td></tr>{% endfor %}</tbody>
+                            </table></div>
+                            {% endif %}
+                            <p><strong>Hallazgo:</strong> La distribución observada aparece en la gráfica y tabla; no se presupone que algún país concentre condenas o procesos abiertos sin verificarlo.</p>
+                            <p><strong>Interpretación:</strong> Las diferencias procesales permiten formular preguntas sobre los contextos judiciales, pero no prueban la celeridad de cada sistema.</p>
+                            <p><strong>Utilidad:</strong> Priorizar la revisión de necesidades de orientación jurídica por consulado y volumen de casos sin definición.</p>
+                            <p><strong>Limitación:</strong> El dataset no especifica la duración de los procesos penales en días.</p>
+                        </div>
+                    </details>
+                </article>
+
+                <article class="relational-panel cyber-panel">
+                    <details class="relational-details">
+                        <summary>Conocimiento Evidente 2 · Tipología delictiva y género</summary>
+                        <div class="relational-copy">
+                            <p><strong>Pregunta:</strong> ¿Existen diferencias en la tipología delictiva y el volumen de registros según el género de los detenidos?</p>
+                            <p><strong>Variables:</strong> GÉNERO, DELITO, CANTIDAD, PAIS PRISIÓN.</p>
+                            <p><strong>Procedimiento:</strong> Agrupar por género y delito, identificando combinaciones y países de mayor frecuencia.</p>
+                            <p><strong>Evidencia:</strong> treemap segmentado por género, país y categoría delictiva.</p>
+                            {% if grafica_genero %}{{ grafica_genero|safe }}{% else %}<p>No hay registros identificables para esta selección.</p>{% endif %}
+                            <p><strong>Hallazgo:</strong> El treemap permite contrastar los volúmenes observados por género, país y delito, sin asumir de antemano qué grupo predomina.</p>
+                            <p><strong>Interpretación:</strong> Las diferencias pueden orientar hipótesis sobre perfiles y rutas, pero no identifican causas de reclutamiento.</p>
+                            <p><strong>Utilidad:</strong> Orientar estrategias consulares preventivas según las combinaciones que destaquen en los datos.</p>
+                            <p><strong>Limitación:</strong> No se registran datos socioeconómicos previos a la detención.</p>
+                        </div>
+                    </details>
+                </article>
+
+                <article class="relational-panel cyber-panel">
+                    <details class="relational-details">
+                        <summary>Conocimiento Evidente 3 · Combinaciones de baja frecuencia</summary>
+                        <div class="relational-copy">
+                            <p><strong>Pregunta:</strong> ¿Qué países registran combinaciones atípicas en delitos de muy baja frecuencia global?</p>
+                            <p><strong>Variables:</strong> PAIS PRISIÓN, DELITO, SITUACIÓN JURÍDICA, CANTIDAD.</p>
+                            <p><strong>Procedimiento:</strong> Identificar las cinco categorías delictivas específicas con menos personas y comparar su distribución territorial y procesal.</p>
+                            <p><strong>Evidencia:</strong> dispersión categorizada y tabla de combinaciones poco frecuentes.</p>
+                            {% if grafica_raros %}{{ grafica_raros|safe }}{% else %}<p>No hay combinaciones geográficas identificables en delitos específicos poco frecuentes.</p>{% endif %}
+                            {% if tabla_raros %}
+                            <div class="relational-table-wrap"><table class="relational-table">
+                                <thead><tr><th>País</th><th>Delito</th><th>Situación jurídica</th><th>Personas</th></tr></thead>
+                                <tbody>{% for fila in tabla_raros %}<tr><td>{{ fila["PAIS PRISIÓN"] }}</td><td>{{ fila["DELITO"] }}</td><td>{{ fila["SITUACIÓN JURÍDICA"] }}</td><td>{{ "{:,.0f}".format(fila["CANTIDAD"]) }}</td></tr>{% endfor %}</tbody>
+                            </table></div>
+                            {% endif %}
+                            <p><strong>Hallazgo:</strong> La tabla muestra registros de baja frecuencia; su escasez no basta para calificarlos como anomalías.</p>
+                            <p><strong>Interpretación:</strong> Cada caso requiere contrastarse con su periodo, la normativa local y sus circunstancias antes de atribuirle un patrón.</p>
+                            <p><strong>Utilidad:</strong> Generar alertas para revisar regulaciones locales emergentes que puedan afectar a viajeros colombianos.</p>
+                            <p><strong>Limitación:</strong> Los datos agregados no detallan sentencias individuales ni circunstancias del arresto.</p>
+                        </div>
+                    </details>
+                </article>
+            </section>
+
+            <section class="relational-panel cyber-panel">
+                <h2>Limitación del análisis</h2>
+                <p class="relational-copy">Las categorías genéricas como “OTROS” o “DESCONOCIDO” en variables como SITUACIÓN JURÍDICA o GRUPO EDAD restringen la precisión al cruzar cuatro o más variables. Además, una parte importante de los registros tiene país desconocido; se excluye del ranking territorial, pero se conserva en el total de detenidos.</p>
+            </section>
+
+            <section class="relational-panel cyber-panel">
+                <h2>Posible decisión sustentada en los datos</h2>
+                <p class="relational-copy">Redistribuir la asignación de personal jurídico consular, concentrando recursos en países con mayor proporción de detenidos bajo “EN JUICIO” o “EN INVESTIGACIÓN”. La tabla presenta los cinco países con mayor porcentaje y desempata por volumen absoluto; conviene considerar también el total de casos antes de asignar recursos.</p>
+                {% if prioridades %}
+                <div class="relational-table-wrap"><table class="relational-table">
+                    <thead><tr><th>País</th><th>Personas sin definición</th><th>Total conocido</th><th>Proporción sin definición</th></tr></thead>
+                    <tbody>{% for fila in prioridades %}<tr><td>{{ fila["PAIS PRISIÓN"] }}</td><td>{{ "{:,.0f}".format(fila["Personas sin definición"]) }}</td><td>{{ "{:,.0f}".format(fila["Total conocido"]) }}</td><td>{{ "%.1f"|format(fila["Proporción sin definición (%)"]) }}%</td></tr>{% endfor %}</tbody>
+                </table></div>
+                {% else %}<p>No hay países conocidos con casos en juicio o investigación.</p>{% endif %}
+            </section>
+        </div>
+    </div>
+</div>
+{% endblock %}

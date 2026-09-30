@@ -527,7 +527,412 @@ def dimension_3():
 
 @app.route('/dimension-4')
 def dimension_4():
-    return render_template('dim_4.html', titulo="Dimensión 4")
+    base = cargar_dataset_procesado()
+    datos = base[["PAIS", "DELITO", "SITUACION", "GENERO", "EDAD", "CANTIDAD"]].copy()
+    datos = datos.rename(columns={
+        "PAIS": "PAIS PRISIÓN",
+        "SITUACION": "SITUACIÓN JURÍDICA",
+        "GENERO": "GÉNERO",
+        "EDAD": "GRUPO EDAD",
+    })
+    datos["CANTIDAD"] = pd.to_numeric(datos["CANTIDAD"], errors="coerce").fillna(0)
+
+    def etiqueta_clave(valor):
+        return re.sub(r"[^A-Z0-9]", "", sin_acentos(valor).replace("\ufffd", "").upper())
+
+    def limpiar_pais(valor):
+        reparado = reparar_mojibake(valor)
+        clave = etiqueta_clave(reparado)
+        if clave in {"ESPA", "ESPAA", "ESPANA"}:
+            return "España"
+        return normalizar_pais(reparado)
+
+    def limpiar_delito(valor):
+        reparado = reparar_mojibake(valor)
+        clave = etiqueta_clave(reparado)
+        if clave.startswith("NARCOTR") and clave.endswith("FICO"):
+            return "Narcotráfico"
+        return normalizar_delito(reparado)
+
+    datos["PAIS PRISIÓN"] = datos["PAIS PRISIÓN"].map(limpiar_pais)
+    datos["DELITO"] = datos["DELITO"].map(limpiar_delito)
+    datos["SITUACIÓN JURÍDICA"] = datos["SITUACIÓN JURÍDICA"].map(normalizar_situacion)
+    datos["GÉNERO"] = datos["GÉNERO"].map(normalizar_genero)
+    datos["GRUPO EDAD"] = datos["GRUPO EDAD"].map(normalizar_edad)
+
+    paises_seleccionados = request.args.getlist("pais")
+    categorias_seleccionadas = request.args.getlist("categoria")
+    delitos_seleccionados = [
+        valor.removeprefix("DELITO::")
+        for valor in categorias_seleccionadas
+        if valor.startswith("DELITO::")
+    ]
+    situaciones_seleccionadas = [
+        valor.removeprefix("SITUACION::")
+        for valor in categorias_seleccionadas
+        if valor.startswith("SITUACION::")
+    ]
+
+    filtrados = datos
+    if paises_seleccionados:
+        filtrados = filtrados.loc[filtrados["PAIS PRISIÓN"].isin(paises_seleccionados)]
+    if delitos_seleccionados:
+        filtrados = filtrados.loc[filtrados["DELITO"].isin(delitos_seleccionados)]
+    if situaciones_seleccionadas:
+        filtrados = filtrados.loc[
+            filtrados["SITUACIÓN JURÍDICA"].isin(situaciones_seleccionadas)
+        ]
+
+    desconocidos = {"DESCONOCIDO", "SININFORMACION"}
+    paises_conocidos = datos.loc[
+        ~datos["PAIS PRISIÓN"].map(etiqueta_clave).isin(desconocidos)
+    ]
+    total = float(filtrados["CANTIDAD"].sum())
+    total_global = float(datos["CANTIDAD"].sum())
+    ranking_paises = paises_conocidos.groupby("PAIS PRISIÓN")["CANTIDAD"].sum().sort_values(
+        ascending=False
+    )
+    pais_principal = ranking_paises.index[0] if not ranking_paises.empty else "Sin información"
+    cantidad_pais_principal = float(ranking_paises.iloc[0]) if not ranking_paises.empty else 0
+    porcentaje_pais_principal = (
+        cantidad_pais_principal / total_global * 100 if total_global else 0
+    )
+    ranking_delitos = filtrados.groupby("DELITO")["CANTIDAD"].sum().sort_values(
+        ascending=False
+    )
+    delito_principal = ranking_delitos.index[0] if not ranking_delitos.empty else "Sin datos"
+    cantidad_delito_principal = float(ranking_delitos.iloc[0]) if not ranking_delitos.empty else 0
+    porcentaje_delito_principal = cantidad_delito_principal / total * 100 if total else 0
+
+    def formato_numero(valor):
+        return f"{valor:,.0f}".replace(",", ".")
+
+    def preparar_figura(figura, altura=480):
+        figura.update_layout(
+            template="plotly_dark",
+            height=altura,
+            margin=dict(l=18, r=18, t=45, b=45),
+            paper_bgcolor="rgba(0,0,0,0)",
+            plot_bgcolor="rgba(0,0,0,0)",
+            legend_title_text="",
+            font=dict(family="Share Tech Mono, monospace"),
+        )
+        return figura
+
+    graficas = []
+
+    cruce = (
+        filtrados.groupby(
+            ["PAIS PRISIÓN", "DELITO", "SITUACIÓN JURÍDICA"], as_index=False
+        )["CANTIDAD"].sum()
+    )
+    if not cruce.empty:
+        total_pais_delito = cruce.groupby(
+            ["PAIS PRISIÓN", "DELITO"]
+        )["CANTIDAD"].transform("sum")
+        condenados = cruce.assign(
+            _CONDENADOS=cruce["SITUACIÓN JURÍDICA"].map(etiqueta_clave).eq("CONDENADO")
+            * cruce["CANTIDAD"]
+        ).groupby(["PAIS PRISIÓN", "DELITO"])["_CONDENADOS"].transform("sum")
+        cruce["Proporción de condenados (%)"] = (
+            condenados.div(total_pais_delito.where(total_pais_delito.ne(0))).fillna(0) * 100
+        )
+        paises_top = (
+            cruce.groupby("PAIS PRISIÓN")["CANTIDAD"].sum().nlargest(15).index
+        )
+        cruce = cruce.loc[cruce["PAIS PRISIÓN"].isin(paises_top)]
+        figura = px.treemap(
+            cruce,
+            path=["PAIS PRISIÓN", "DELITO", "SITUACIÓN JURÍDICA"],
+            values="CANTIDAD",
+            color="Proporción de condenados (%)",
+            color_continuous_scale="Blues",
+            range_color=(0, 100),
+            custom_data=["Proporción de condenados (%)"],
+            labels={
+                "PAIS PRISIÓN": "País",
+                "SITUACIÓN JURÍDICA": "Situación jurídica",
+                "CANTIDAD": "Personas",
+            },
+        )
+        figura.update_traces(
+            textinfo="label+value",
+            hovertemplate=(
+                "<b>%{label}</b><br>Personas: %{value:,.0f}"
+                "<br>Condenados en país-delito: %{customdata[0]:.1f}%<extra></extra>"
+            ),
+        )
+        preparar_figura(figura, 570)
+        combinacion_top = cruce.nlargest(1, "CANTIDAD").iloc[0]
+        interpretacion_1 = (
+            f"Se muestran hasta 15 países. El área representa la cantidad agrupada "
+            f"por país, delito y estado; el color indica la proporción de condenados "
+            f"dentro de cada combinación país-delito. La mayor combinación visible "
+            f"es {combinacion_top['PAIS PRISIÓN']} · {combinacion_top['DELITO']} · "
+            f"{combinacion_top['SITUACIÓN JURÍDICA']} "
+            f"({formato_numero(combinacion_top['CANTIDAD'])} personas)."
+        )
+        graficas.append(figura.to_html(full_html=False, include_plotlyjs="cdn"))
+    else:
+        interpretacion_1 = "No hay registros para los filtros seleccionados."
+        graficas.append("")
+
+    conocidos_filtrados = filtrados.loc[
+        ~filtrados["PAIS PRISIÓN"].map(etiqueta_clave).isin(desconocidos)
+    ]
+    if not conocidos_filtrados.empty:
+        top_paises = (
+            conocidos_filtrados.groupby("PAIS PRISIÓN")["CANTIDAD"].sum().nlargest(5).index
+        )
+        top_delitos = (
+            conocidos_filtrados.groupby("DELITO")["CANTIDAD"].sum().nlargest(8).index
+        )
+        barras = conocidos_filtrados.loc[
+            conocidos_filtrados["PAIS PRISIÓN"].isin(top_paises)
+            & conocidos_filtrados["DELITO"].isin(top_delitos)
+        ].groupby(
+            ["PAIS PRISIÓN", "DELITO", "GÉNERO", "SITUACIÓN JURÍDICA"],
+            as_index=False,
+        )["CANTIDAD"].sum()
+        figura = px.bar(
+            barras,
+            x="DELITO",
+            y="CANTIDAD",
+            color="SITUACIÓN JURÍDICA",
+            facet_col="PAIS PRISIÓN",
+            facet_col_wrap=3,
+            facet_row="GÉNERO",
+            barmode="stack",
+            labels={
+                "DELITO": "Delito",
+                "CANTIDAD": "Personas",
+                "SITUACIÓN JURÍDICA": "Situación jurídica",
+            },
+            hover_data={"GÉNERO": True, "PAIS PRISIÓN": True, "CANTIDAD": ":,.0f"},
+        )
+        figura.update_xaxes(tickangle=35)
+        preparar_figura(figura, 740)
+        top_combinacion = barras.groupby(
+            ["PAIS PRISIÓN", "DELITO"]
+        )["CANTIDAD"].sum().nlargest(1)
+        pais_top, delito_top = top_combinacion.index[0]
+        interpretacion_2 = (
+            "Las barras apilan la situación jurídica y las facetas comparan género "
+            "en los cinco países conocidos de mayor volumen. La combinación "
+            f"país-delito más numerosa de la selección es {pais_top} · {delito_top} "
+            f"({formato_numero(top_combinacion.iloc[0])} personas)."
+        )
+        graficas.append(figura.to_html(full_html=False, include_plotlyjs=False))
+    else:
+        interpretacion_2 = "No hay países identificados para comparar con los filtros actuales."
+        graficas.append("")
+
+    burbujas = (
+        filtrados.groupby(["GRUPO EDAD", "DELITO", "GÉNERO"], as_index=False)["CANTIDAD"]
+        .sum()
+    )
+    if not burbujas.empty:
+        delitos_top_burbujas = (
+            burbujas.groupby("DELITO")["CANTIDAD"].sum().nlargest(15).index
+        )
+        burbujas = burbujas.loc[burbujas["DELITO"].isin(delitos_top_burbujas)]
+        figura = px.scatter(
+            burbujas,
+            x="DELITO",
+            y="GRUPO EDAD",
+            size="CANTIDAD",
+            color="GÉNERO",
+            size_max=42,
+            hover_data={"GRUPO EDAD": True, "GÉNERO": True, "CANTIDAD": ":,.0f"},
+            labels={
+                "DELITO": "Delito",
+                "GRUPO EDAD": "Grupo de edad",
+                "GÉNERO": "Género",
+                "CANTIDAD": "Personas",
+            },
+        )
+        figura.update_xaxes(tickangle=35)
+        preparar_figura(figura, 500)
+        mayor_burbuja = burbujas.nlargest(1, "CANTIDAD").iloc[0]
+        interpretacion_3 = (
+            "Cada burbuja cruza grupo de edad, delito y género; su área representa "
+            "la cantidad. Se muestran los 15 delitos más frecuentes. La combinación "
+            f"mayor es {mayor_burbuja['GRUPO EDAD']} · {mayor_burbuja['DELITO']} · "
+            f"{mayor_burbuja['GÉNERO']} "
+            f"({formato_numero(mayor_burbuja['CANTIDAD'])} personas)."
+        )
+        graficas.append(figura.to_html(full_html=False, include_plotlyjs=False))
+    else:
+        interpretacion_3 = "No hay registros para los filtros seleccionados."
+        graficas.append("")
+
+    narcotrafico = paises_conocidos.loc[
+        paises_conocidos["DELITO"].map(etiqueta_clave).eq("NARCOTRAFICO")
+    ]
+    if paises_seleccionados:
+        narcotrafico = narcotrafico.loc[
+            narcotrafico["PAIS PRISIÓN"].isin(paises_seleccionados)
+        ]
+    grafica_narcotrafico = ""
+    tabla_narcotrafico = []
+    if not narcotrafico.empty:
+        principales = (
+            narcotrafico.groupby("PAIS PRISIÓN")["CANTIDAD"].sum().nlargest(10).index
+        )
+        narcotrafico = narcotrafico.loc[narcotrafico["PAIS PRISIÓN"].isin(principales)]
+        tabla = narcotrafico.groupby(
+            ["PAIS PRISIÓN", "SITUACIÓN JURÍDICA"], as_index=False
+        )["CANTIDAD"].sum()
+        totales = tabla.groupby("PAIS PRISIÓN")["CANTIDAD"].transform("sum")
+        tabla["Proporción (%)"] = tabla["CANTIDAD"].div(totales).mul(100)
+        figura = px.bar(
+            tabla,
+            x="PAIS PRISIÓN",
+            y="Proporción (%)",
+            color="SITUACIÓN JURÍDICA",
+            barmode="stack",
+            hover_data={"CANTIDAD": ":,.0f", "Proporción (%)": ":.1f"},
+            labels={
+                "PAIS PRISIÓN": "País",
+                "Proporción (%)": "Proporción en el país (%)",
+                "SITUACIÓN JURÍDICA": "Situación jurídica",
+            },
+        )
+        figura.update_xaxes(tickangle=35)
+        preparar_figura(figura, 410)
+        grafica_narcotrafico = figura.to_html(full_html=False, include_plotlyjs=False)
+        tabla_narcotrafico = tabla.sort_values(
+            ["PAIS PRISIÓN", "CANTIDAD"], ascending=[True, False]
+        ).to_dict("records")
+
+    generos = paises_conocidos
+    if paises_seleccionados:
+        generos = generos.loc[generos["PAIS PRISIÓN"].isin(paises_seleccionados)]
+    agrupado_genero = generos.groupby(
+        ["GÉNERO", "PAIS PRISIÓN", "DELITO"], as_index=False
+    )["CANTIDAD"].sum()
+    if not agrupado_genero.empty:
+        figura = px.treemap(
+            agrupado_genero,
+            path=["GÉNERO", "PAIS PRISIÓN", "DELITO"],
+            values="CANTIDAD",
+            color="CANTIDAD",
+            color_continuous_scale="Teal",
+            labels={
+                "GÉNERO": "Género",
+                "PAIS PRISIÓN": "País",
+                "DELITO": "Delito",
+                "CANTIDAD": "Personas",
+            },
+        )
+        figura.update_traces(
+            hovertemplate="<b>%{label}</b><br>Personas: %{value:,.0f}<extra></extra>"
+        )
+        preparar_figura(figura, 430)
+        grafica_genero = figura.to_html(full_html=False, include_plotlyjs=False)
+    else:
+        grafica_genero = ""
+
+    crimen_totales = datos.groupby("DELITO")["CANTIDAD"].sum()
+    crimenes_genericos = {"DESCONOCIDO", "SININFORMACION", "OTROS"}
+    crimenes_especificos = crimen_totales.loc[
+        ~crimen_totales.index.map(etiqueta_clave).isin(crimenes_genericos)
+    ]
+    delitos_raros = crimenes_especificos.nsmallest(5).index
+    raros = paises_conocidos.loc[paises_conocidos["DELITO"].isin(delitos_raros)]
+    raros_agrupados = raros.groupby(
+        ["PAIS PRISIÓN", "DELITO", "SITUACIÓN JURÍDICA"], as_index=False
+    )["CANTIDAD"].sum()
+    if not raros_agrupados.empty:
+        paises_raros_top = (
+            raros_agrupados.groupby("PAIS PRISIÓN")["CANTIDAD"].sum().nlargest(20).index
+        )
+        raros_agrupados = raros_agrupados.loc[
+            raros_agrupados["PAIS PRISIÓN"].isin(paises_raros_top)
+        ]
+        figura = px.scatter(
+            raros_agrupados,
+            x="PAIS PRISIÓN",
+            y="DELITO",
+            size="CANTIDAD",
+            color="SITUACIÓN JURÍDICA",
+            size_max=36,
+            hover_data={"CANTIDAD": ":,.0f"},
+            labels={
+                "PAIS PRISIÓN": "País",
+                "DELITO": "Delito de baja frecuencia",
+                "SITUACIÓN JURÍDICA": "Situación jurídica",
+                "CANTIDAD": "Personas",
+            },
+        )
+        figura.update_xaxes(tickangle=35)
+        preparar_figura(figura, 400)
+        grafica_raros = figura.to_html(full_html=False, include_plotlyjs=False)
+        tabla_raros = raros_agrupados.nlargest(25, "CANTIDAD").to_dict("records")
+    else:
+        grafica_raros = ""
+        tabla_raros = []
+
+    paises_decision = (
+        datos.loc[datos["PAIS PRISIÓN"].isin(paises_seleccionados)]
+        if paises_seleccionados
+        else datos
+    )
+    paises_decision = paises_decision.loc[
+        ~paises_decision["PAIS PRISIÓN"].map(etiqueta_clave).isin(desconocidos)
+    ]
+    sin_definicion = paises_decision.loc[
+        paises_decision["SITUACIÓN JURÍDICA"].map(etiqueta_clave).isin(
+            {"ENJUICIO", "ENINVESTIGACION"}
+        )
+    ].groupby("PAIS PRISIÓN")["CANTIDAD"].sum().rename("Personas sin definición")
+    totales_decision = paises_decision.groupby("PAIS PRISIÓN")["CANTIDAD"].sum().rename(
+        "Total conocido"
+    )
+    prioridades = pd.concat([sin_definicion, totales_decision], axis=1).fillna(0)
+    prioridades["Proporción sin definición (%)"] = (
+        prioridades["Personas sin definición"]
+        .div(prioridades["Total conocido"].where(prioridades["Total conocido"].ne(0)))
+        .fillna(0)
+        * 100
+    )
+    prioridades = prioridades.sort_values(
+        ["Proporción sin definición (%)", "Personas sin definición"],
+        ascending=False,
+    ).head(5).reset_index()
+
+    variables = [
+        ("PAIS PRISIÓN", "Cualitativa nominal", "Territorio"),
+        ("DELITO", "Cualitativa nominal", "Causa o tipología"),
+        ("SITUACIÓN JURÍDICA", "Cualitativa nominal/ordinal", "Estado del proceso"),
+        ("GÉNERO", "Cualitativa nominal", "Variable demográfica"),
+        ("GRUPO EDAD", "Cualitativa ordinal", "Etapa de vida"),
+        ("CANTIDAD", "Cuantitativa discreta", "Métrica de conteo"),
+    ]
+
+    return render_template(
+        "dim_4.html",
+        titulo="Dimensión 4",
+        variables=variables,
+        paises=sorted(datos["PAIS PRISIÓN"].dropna().unique()),
+        delitos=sorted(datos["DELITO"].dropna().unique()),
+        situaciones=sorted(datos["SITUACIÓN JURÍDICA"].dropna().unique()),
+        paises_seleccionados=paises_seleccionados,
+        categorias_seleccionadas=categorias_seleccionadas,
+        total=formato_numero(total),
+        pais_principal=pais_principal,
+        porcentaje_pais_principal=porcentaje_pais_principal,
+        delito_principal=delito_principal,
+        porcentaje_delito_principal=porcentaje_delito_principal,
+        graficas=graficas,
+        interpretaciones=[interpretacion_1, interpretacion_2, interpretacion_3],
+        grafica_narcotrafico=grafica_narcotrafico,
+        tabla_narcotrafico=tabla_narcotrafico,
+        grafica_genero=grafica_genero,
+        grafica_raros=grafica_raros,
+        tabla_raros=tabla_raros,
+        prioridades=prioridades.to_dict("records"),
+    )
 
 
 # ============================================================
