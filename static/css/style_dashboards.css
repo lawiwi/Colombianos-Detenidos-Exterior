@@ -1,53 +1,1006 @@
+/* ============================================================
+   DASHBOARDS - ESTILO GENERAL
+============================================================ */
+
+
 /* LA MAGIA RESPONSIVA DE GRID */
+
 .dashboard-grid {
+
     display: grid;
-    /* Escritorio: 3 columnas (250px izquierda, el resto al centro, 250px derecha) */
-    grid-template-columns: 250px 1fr 250px;
+
+    grid-template-columns:
+        250px
+        1fr
+        250px;
+
     gap: 20px;
+
     align-items: start;
+
 }
 
-/* --- Elementos internos del Dashboard --- */
-.filter-group { margin-bottom: 15px; }
-.filter-group label { display: block; font-size: 0.85rem; color: #aaa; margin-bottom: 5px; }
+
+/* ============================================================
+   COLUMNA IZQUIERDA — CONTENEDOR
+============================================================ */
+
+.sidebar-left {
+
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 20px;
+
+    align-self: start;
+
+}
+
+
+/* ============================================================
+   ELEMENTOS INTERNOS DEL DASHBOARD
+============================================================ */
+
+.filter-group {
+
+    margin-bottom: 15px;
+
+}
+
+
+.filter-group label {
+
+    display: block;
+
+    font-size: 0.85rem;
+
+    color: #aaa;
+
+    margin-bottom: 5px;
+
+}
+
+
 .cyber-input {
-    width: 100%; padding: 8px;
-    background: rgba(0,0,0,0.5);
-    border: 1px solid var(--neon-cyan);
-    color: var(--text-main); font-family: 'Share Tech Mono', monospace;
+
+    width: 100%;
+
+    padding: 8px;
+
+    background:
+        rgba(0, 0, 0, 0.5);
+
+    border:
+        1px solid var(--neon-cyan);
+
+    color:
+        var(--text-main);
+
+    font-family:
+        'Share Tech Mono',
+        monospace;
+
+    transition:
+        box-shadow 0.25s ease,
+        border-color 0.25s ease;
+
 }
 
-.kpi-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-bottom: 20px; }
-.kpi-card { padding: 15px; text-align: center; }
-.kpi-label { font-size: 0.8rem; color: #888; }
-.kpi-value { font-size: 2rem; color: #fff; }
 
-.chart-panel { height: 500px; display: flex; flex-direction: column; }
-.chart-placeholder { flex-grow: 1; border: 1px dashed #444; display: grid; place-items: center; color: #555; }
-.w-100 { width: 100%; }
-.analysis-text { line-height: 1.6; font-size: 0.95rem; }
+.cyber-input:focus {
 
-/* MEDIA QUERIES (Evitan que colapse al achicar la ventana) */
+    outline: none;
 
-/* Pantallas medianas (Tablets/Laptops pequeñas) */
+    border-color: var(--neon-cyan);
+
+    box-shadow:
+        0 0 12px
+        rgba(0, 240, 255, 0.35);
+
+}
+
+
+.kpi-container {
+
+    display: grid;
+
+    grid-template-columns:
+        repeat(
+            auto-fit,
+            minmax(150px, 1fr)
+        );
+
+    gap: 15px;
+
+    margin-bottom: 20px;
+
+}
+
+
+.kpi-card {
+
+    padding: 15px;
+
+    text-align: center;
+
+    opacity: 0;
+
+    transform: translateY(18px);
+
+    transition:
+        opacity 0.6s ease,
+        transform 0.6s ease,
+        box-shadow 0.3s ease;
+
+}
+
+
+.kpi-card.is-visible {
+
+    opacity: 1;
+
+    transform: none;
+
+}
+
+
+.kpi-card:hover {
+
+    transform:
+        translateY(-3px);
+
+    box-shadow:
+        0 0 18px
+        rgba(0, 240, 255, 0.22);
+
+}
+
+
+.kpi-label {
+
+    font-size: 0.8rem;
+
+    color: #888;
+
+}
+
+
+.kpi-value {
+
+    font-size: 1.6rem;
+
+    color: #fff;
+
+    word-break: break-word;
+
+    text-shadow:
+        0 0 14px
+        rgba(0, 240, 255, 0.25);
+
+}
+
+
+.kpi-description {
+
+    color: #777;
+
+    font-size: 0.72rem;
+
+    margin-top: 5px;
+
+}
+
+
+.chart-panel {
+
+    min-height: 500px;
+
+    display: flex;
+
+    flex-direction: column;
+
+    margin-bottom: 20px;
+
+    opacity: 0;
+
+    transform: translateY(22px);
+
+    transition:
+        opacity 0.7s ease,
+        transform 0.7s ease;
+
+}
+
+
+.chart-panel.is-visible {
+
+    opacity: 1;
+
+    transform: none;
+
+}
+
+
+.plot-container {
+
+    flex: 1;
+
+    min-height: 350px;
+
+    width: 100%;
+
+    overflow: hidden;
+
+}
+
+
+.plot-container
+.plotly-graph-div {
+
+    width: 100% !important;
+
+}
+
+
+.w-100 {
+
+    width: 100%;
+
+}
+
+
+.analysis-text {
+
+    line-height: 1.6;
+
+    font-size: 0.95rem;
+
+}
+
+
+/* ============================================================
+   ENCABEZADO
+============================================================ */
+
+.dashboard-header {
+
+    position: relative;
+
+    margin-bottom: 20px;
+
+    text-align: center;
+
+    overflow: hidden;
+
+}
+
+
+.dashboard-header::after {
+
+    content: '';
+
+    position: absolute;
+
+    left: 0;
+
+    right: 0;
+
+    top: 0;
+
+    height: 2px;
+
+    background:
+        linear-gradient(
+            90deg,
+            transparent,
+            var(--neon-cyan),
+            transparent
+        );
+
+    opacity: 0.65;
+
+    animation:
+        dash-sweep 5s linear infinite;
+
+}
+
+
+.dashboard-main-title {
+
+    color:
+        var(--neon-cyan);
+
+    font-family:
+        'Syncopate',
+        sans-serif;
+
+    font-size:
+        1.5rem;
+
+    letter-spacing:
+        3px;
+
+    margin-bottom:
+        12px;
+
+    text-shadow:
+        0 0 18px
+        rgba(0, 240, 255, 0.35);
+
+}
+
+
+.dashboard-question {
+
+    color:
+        #aaa;
+
+    line-height:
+        1.6;
+
+    font-size:
+        0.95rem;
+
+}
+
+
+@keyframes dash-sweep {
+
+    0%   { transform: translateX(-100%); }
+
+    100% { transform: translateX(100%);  }
+
+}
+
+
+/* ============================================================
+   TÍTULOS DE PANEL CON SUBRAYADO ANIMADO
+============================================================ */
+
+.panel-title {
+
+    position: relative;
+
+    padding-bottom: 10px;
+
+    margin-bottom: 16px;
+
+}
+
+
+.panel-title::after {
+
+    content: '';
+
+    position: absolute;
+
+    left: 0;
+
+    bottom: 0;
+
+    width: 60px;
+
+    height: 2px;
+
+    background:
+        linear-gradient(
+            90deg,
+            var(--neon-cyan),
+            transparent
+        );
+
+    box-shadow:
+        0 0 10px
+        rgba(0, 240, 255, 0.55);
+
+    transition:
+        width 0.4s ease;
+
+}
+
+
+.cyber-panel:hover
+.panel-title::after {
+
+    width: 110px;
+
+}
+
+
+/* ============================================================
+   ESQUINAS DE GRADIENTE EN PANELES
+============================================================ */
+
+.cyber-panel {
+
+    position: relative;
+
+    overflow: hidden;
+
+    transition:
+        box-shadow 0.3s ease;
+
+}
+
+
+.cyber-panel::before {
+
+    content: '';
+
+    position: absolute;
+
+    top: 0;
+
+    left: 0;
+
+    width: 70px;
+
+    height: 2px;
+
+    background:
+        linear-gradient(
+            90deg,
+            var(--neon-cyan),
+            transparent
+        );
+
+    pointer-events: none;
+
+}
+
+
+.cyber-panel::after {
+
+    content: '';
+
+    position: absolute;
+
+    top: 0;
+
+    right: 0;
+
+    width: 2px;
+
+    height: 70px;
+
+    background:
+        linear-gradient(
+            180deg,
+            var(--neon-pink),
+            transparent
+        );
+
+    pointer-events: none;
+
+}
+
+
+/* ============================================================
+   INTERPRETACIÓN DE GRÁFICOS
+============================================================ */
+
+.chart-interpretation {
+
+    margin-top:
+        12px;
+
+    padding:
+        12px;
+
+    border-top:
+        1px dashed #333;
+
+    color:
+        #999;
+
+    font-size:
+        0.82rem;
+
+    line-height:
+        1.5;
+
+}
+
+
+.chart-interpretation strong {
+
+    display:
+        block;
+
+    color:
+        var(--neon-cyan);
+
+    font-size:
+        0.72rem;
+
+    letter-spacing:
+        1px;
+
+    margin-bottom:
+        5px;
+
+}
+
+
+.chart-interpretation em {
+
+    color: #ccc;
+
+    font-style: italic;
+
+}
+
+
+/* ============================================================
+   CONCLUSIONES
+============================================================ */
+
+.dashboard-conclusion {
+
+    margin-bottom:
+        20px;
+
+    padding-bottom:
+        15px;
+
+    border-bottom:
+        1px dashed #333;
+
+}
+
+
+.dashboard-conclusion span {
+
+    display:
+        block;
+
+    font-size:
+        0.75rem;
+
+    letter-spacing:
+        1px;
+
+    margin-bottom:
+        7px;
+
+}
+
+
+.dashboard-conclusion p {
+
+    color:
+        #aaa;
+
+    line-height:
+        1.5;
+
+    font-size:
+        0.85rem;
+
+}
+
+
+/* ============================================================
+   ADVERTENCIA / LIMITACIÓN
+============================================================ */
+
+.dashboard-warning {
+
+    border:
+        1px solid
+        rgba(
+            255,
+            0,
+            85,
+            0.35
+        );
+
+    padding:
+        12px;
+
+    margin-top:
+        15px;
+
+}
+
+
+.dashboard-warning strong {
+
+    display:
+        block;
+
+    color:
+        var(--neon-pink);
+
+    font-size:
+        0.75rem;
+
+    margin-bottom:
+        7px;
+
+}
+
+
+.dashboard-warning p {
+
+    color:
+        #aaa;
+
+    font-size:
+        0.8rem;
+
+    line-height:
+        1.5;
+
+}
+
+
+/* ============================================================
+   DECISIÓN SUSTENTADA
+============================================================ */
+
+.dashboard-decision {
+
+    border:
+        1px solid
+        rgba(
+            0,
+            255,
+            255,
+            0.35
+        );
+
+    padding:
+        12px;
+
+    margin-top:
+        15px;
+
+    background:
+        rgba(
+            0,
+            255,
+            255,
+            0.05
+        );
+
+}
+
+
+.dashboard-decision strong {
+
+    display:
+        block;
+
+    color:
+        var(--neon-cyan);
+
+    font-size:
+        0.75rem;
+
+    margin-bottom:
+        7px;
+
+}
+
+
+.dashboard-decision p {
+
+    color:
+        #bbb;
+
+    font-size:
+        0.8rem;
+
+    line-height:
+        1.5;
+
+}
+
+
+/* ============================================================
+   FILTROS ACTIVOS + BANDERA
+============================================================ */
+
+.filter-description {
+
+    margin-top:
+        20px;
+
+    padding-top:
+        15px;
+
+    border-top:
+        1px dashed #333;
+
+    font-size:
+        0.78rem;
+
+}
+
+
+.filter-description p {
+
+    color:
+        #777;
+
+    margin-top:
+        5px;
+
+}
+
+
+.pais-activo {
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 10px;
+
+    margin: 8px 0 6px 0;
+
+    padding: 8px;
+
+    background:
+        rgba(0, 255, 255, 0.05);
+
+    border:
+        1px solid
+        rgba(0, 255, 255, 0.2);
+
+    border-radius: 4px;
+
+    color: #ddd;
+
+    font-size: 0.8rem;
+
+}
+
+
+.bandera-img {
+
+    width: 36px;
+
+    height: auto;
+
+    border:
+        1px solid
+        rgba(0, 255, 255, 0.4);
+
+    border-radius: 2px;
+
+    box-shadow:
+        0 0 10px
+        rgba(0, 255, 255, 0.35);
+
+}
+
+
+.pais-todos {
+
+    color: #888;
+
+    font-size: 0.8rem;
+
+}
+
+
+/* ============================================================
+   PANEL DE VARIABLES (SIDEBAR IZQUIERDO)
+============================================================ */
+
+.variables-panel-sidebar {
+
+    padding: 15px;
+
+}
+
+
+.variable-item-sidebar {
+
+    margin-bottom: 12px;
+
+    padding-bottom: 10px;
+
+    border-bottom:
+        1px dashed #2a2a2a;
+
+    transition:
+        padding-left 0.25s ease;
+
+}
+
+
+.variable-item-sidebar:hover {
+
+    padding-left: 4px;
+
+}
+
+
+.variable-item-sidebar:last-child {
+
+    border-bottom: none;
+
+    margin-bottom: 0;
+
+    padding-bottom: 0;
+
+}
+
+
+.variable-name-sidebar {
+
+    display: block;
+
+    color:
+        var(--neon-cyan);
+
+    font-family:
+        'Share Tech Mono',
+        monospace;
+
+    font-size: 0.72rem;
+
+    letter-spacing: 1px;
+
+    margin-bottom: 4px;
+
+}
+
+
+.variable-desc-sidebar {
+
+    display: block;
+
+    color: #888;
+
+    font-size: 0.7rem;
+
+    line-height: 1.4;
+
+}
+
+
+/* ============================================================
+   MEDIA QUERIES
+============================================================ */
+
 @media (max-width: 1024px) {
+
     .dashboard-grid {
-        /* Pasamos a 2 columnas, la derecha se va abajo */
-        grid-template-columns: 250px 1fr;
+
+        grid-template-columns:
+            250px
+            1fr;
+
     }
+
+
     .sidebar-right {
-        /* Hacemos que la conclusión ocupe todo el ancho abajo */
-        grid-column: 1 / -1; 
+
+        grid-column:
+            1 / -1;
+
     }
+
 }
 
-/* Pantallas pequeñas (Celulares) */
+
 @media (max-width: 768px) {
+
     .dashboard-grid {
-        /* Todo se vuelve 1 sola columna vertical */
-        grid-template-columns: 1fr; 
+
+        grid-template-columns:
+            1fr;
+
     }
-    .cyber-navbar { flex-direction: column; padding: 10px; }
-    .nav-links { margin-top: 10px; }
-    .glitch-text { font-size: 2.5rem; }
+
+
+    .cyber-navbar {
+
+        flex-direction:
+            column;
+
+        padding:
+            10px;
+
+    }
+
+
+    .nav-links {
+
+        margin-top:
+            10px;
+
+    }
+
+
+    .glitch-text {
+
+        font-size:
+            2.5rem;
+
+    }
+
+
+    .dashboard-main-title {
+
+        font-size:
+            1rem;
+
+        letter-spacing:
+            1px;
+
+    }
+
+
+    .chart-panel {
+
+        min-height:
+            420px;
+
+    }
+
+
+    .plot-container {
+
+        min-height:
+            300px;
+
+    }
+
+}
+
+.btn-analysis {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 18px;
+    padding: 10px 22px;
+    color: var(--neon-cyan, #00f0ff);
+    border: 1px solid var(--neon-cyan, #00f0ff);
+    border-radius: 4px;
+    background: transparent;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.75rem;
+    letter-spacing: 2px;
+    text-decoration: none;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.btn-analysis::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background:
+        linear-gradient(
+            90deg,
+            transparent,
+            rgba(0, 240, 255, 0.35),
+            transparent
+        );
+    transition: left 0.55s ease;
+}
+
+.btn-analysis:hover::before {
+    left: 100%;
+}
+
+.btn-analysis:hover {
+    background: rgba(0, 240, 255, 0.10);
+    box-shadow: 0 0 22px rgba(0, 240, 255, 0.45);
+    color: #fff;
+}
+
+.btn-analysis-icon {
+    font-size: 1rem;
+    filter: drop-shadow(0 0 6px rgba(0, 240, 255, 0.7));
 }
