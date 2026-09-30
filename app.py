@@ -1,9 +1,13 @@
 from flask import Flask, render_template, request, redirect, url_for
 import pandas as pd
 import plotly.express as px
+import numpy as np
+from plotly.subplots import make_subplots
 import os
 import re
 import unicodedata
+
+from src import analisis_temporal as temporal
 
 
 app = Flask(__name__)
@@ -522,7 +526,7 @@ def dimension_2():
 
 @app.route('/dimension-3')
 def dimension_3():
-    return render_template('dim_3.html', titulo="Dimensión 3")
+    return redirect(url_for('dimension_temporal'))
 
 
 @app.route('/dimension-4')
@@ -1004,6 +1008,389 @@ def analisis_poblacional():
         grafica_k1=grafica_k1,
         grafica_k2=grafica_k2,
         grafica_k3=grafica_k3,
+    )
+
+
+# ============================================================
+# DIMENSIÓN TEMPORAL
+# ------------------------------------------------------------
+# El detalle metodológico de por qué la comparación se hace entre
+# cortes y no de forma acumulada está documentado en
+# src/analisis_temporal.py.
+# ============================================================
+
+@app.route('/dimension-temporal')
+def dimension_temporal():
+
+    # --------------------------------------------------------
+    # 1. FILTROS
+    # --------------------------------------------------------
+
+    pais_filtro = request.args.get("pais", "").strip()
+    situacion_filtro = request.args.get("situacion", "").strip()
+
+    # Se reutiliza la capa de datos ya normalizada por la dimensión
+    # poblacional. Así los valores de los filtros coinciden con los
+    # de las demás dimensiones y el costo se paga una sola vez por
+    # proceso.
+    df_base = cargar_dataset_procesado()
+
+    if "lista_situaciones" not in _CACHE_DATASET:
+        _CACHE_DATASET["lista_situaciones"] = sorted(
+            df_base["SITUACION"].dropna().astype(str).unique().tolist()
+        )
+
+    lista_paises = _CACHE_DATASET.get(
+        "lista_paises",
+        sorted(df_base["PAIS"].dropna().astype(str).unique().tolist())
+    )
+    lista_situaciones = _CACHE_DATASET["lista_situaciones"]
+
+    # --------------------------------------------------------
+    # 2. SERIE DE CORTES Y EVOLUCIÓN
+    # --------------------------------------------------------
+
+    df_filtrado = temporal.filtrar(
+        df_base,
+        pais=pais_filtro,
+        situacion=situacion_filtro,
+    )
+
+    serie = temporal.serie_temporal(df_filtrado)
+    indicadores = temporal.indicadores(serie)
+    anual = temporal.resumen_por_anio(serie)
+    por_mes = temporal.variacion_por_mes_del_ano(serie)
+
+    # Una combinación de filtros puede quedar sin registros. En ese
+    # caso no se construyen las gráficas: se devuelve el tablero con un
+    # aviso para que el usuario revise o quite los filtros.
+    sin_datos = serie.empty
+
+    if sin_datos:
+        return render_template(
+            'dim_3.html',
+            titulo="Dimensión Temporal",
+            sin_datos=True,
+            lista_paises=lista_paises,
+            lista_situaciones=lista_situaciones,
+            pais_seleccionado=pais_filtro,
+            situacion_seleccionada=situacion_filtro,
+        )
+
+    # --------------------------------------------------------
+    # 3. GRÁFICA 1 — STOCK POR CORTE
+    # --------------------------------------------------------
+
+    serie_grafica = serie.copy()
+    serie_grafica["TIPO"] = np.where(
+        serie_grafica["es_repoblacion"],
+        "Republicacion masiva",
+        "Corte comparable",
+    )
+
+    fig_stock = px.line(
+        serie_grafica,
+        x="FECHA",
+        y="stock",
+        color="TIPO",
+        markers=True,
+        color_discrete_map={
+            "Corte comparable": "#00f0ff",
+            "Republicacion masiva": "#ff0055",
+        },
+        labels={
+            "FECHA": "Fecha de corte",
+            "stock": "Personas detenidas",
+            "TIPO": "",
+        },
+    )
+
+    fig_stock.update_traces(
+        line=dict(width=2),
+        marker=dict(size=6),
+        hovertemplate=(
+            "<b>%{x|%d/%m/%Y}</b><br>"
+            "Stock: %{y:,.0f} personas<extra></extra>"
+        ),
+    )
+
+    fig_stock.update_layout(
+        template="plotly_dark",
+        height=460,
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        margin=dict(l=20, r=20, t=30, b=20),
+        font=dict(family="Share Tech Mono, monospace"),
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, x=0),
+        xaxis=dict(gridcolor="rgba(0,240,255,0.08)"),
+        yaxis=dict(gridcolor="rgba(0,240,255,0.08)"),
+    )
+
+    grafica_stock = fig_stock.to_html(
+        full_html=False,
+        include_plotlyjs="cdn",
+        config={"displayModeBar": False},
+    )
+
+    # --------------------------------------------------------
+    # 4. GRÁFICA 2 — VARIACIÓN NETA ENTRE CORTES
+    # --------------------------------------------------------
+
+    comparables = serie[serie["variacion_neta"].notna()].copy()
+    comparables["MOVIMIENTO"] = np.where(
+        comparables["variacion_neta"] >= 0,
+        "Aumento",
+        "Disminucion",
+    )
+
+    fig_variacion = px.bar(
+        comparables,
+        x="FECHA",
+        y="variacion_neta",
+        color="MOVIMIENTO",
+        color_discrete_map={
+            "Aumento": "#7affb2",
+            "Disminucion": "#ff6b6b",
+        },
+        labels={
+            "FECHA": "Fecha de corte",
+            "variacion_neta": "Personas frente al corte anterior",
+            "MOVIMIENTO": "",
+        },
+    )
+
+    fig_variacion.add_hline(
+        y=0, line_width=1, line_dash="dot", line_color="rgba(255,255,255,0.35)"
+    )
+
+    fig_variacion.update_traces(
+        hovertemplate=(
+            "<b>%{x|%d/%m/%Y}</b><br>"
+            "Variacion: %{y:+,.0f} personas<extra></extra>"
+        ),
+    )
+
+    fig_variacion.update_layout(
+        template="plotly_dark",
+        height=420,
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        margin=dict(l=20, r=20, t=30, b=20),
+        font=dict(family="Share Tech Mono, monospace"),
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, x=0),
+        xaxis=dict(gridcolor="rgba(0,240,255,0.08)"),
+        yaxis=dict(gridcolor="rgba(0,240,255,0.08)"),
+    )
+
+    grafica_variacion = fig_variacion.to_html(
+        full_html=False,
+        include_plotlyjs=False,
+        config={"displayModeBar": False},
+    )
+
+    # --------------------------------------------------------
+    # 5. GRÁFICA 3 — CIERRE Y CRECIMIENTO POR AÑO
+    # --------------------------------------------------------
+
+    fig_anual = px.bar(
+        anual,
+        x=anual["anio"].astype(str),
+        y="crecimiento_neto",
+        color="crecimiento_neto",
+        color_continuous_scale=["#ff6b6b", "#0a1a2f", "#7affb2"],
+        labels={
+            "x": "Año",
+            "crecimiento_neto": "Crecimiento neto del año",
+            "color": "",
+        },
+    )
+
+    fig_anual.add_scatter(
+        x=anual["anio"].astype(str),
+        y=anual["stock_cierre"],
+        name="Stock de cierre",
+        mode="lines+markers",
+        line=dict(color="#ffb703", width=2),
+        yaxis="y2",
+        hovertemplate="Stock de cierre: %{y:,.0f}<extra></extra>",
+    )
+
+    fig_anual.add_hline(
+        y=0, line_width=1, line_dash="dot", line_color="rgba(255,255,255,0.35)"
+    )
+
+    fig_anual.update_layout(
+        template="plotly_dark",
+        height=460,
+        coloraxis_showscale=False,
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        margin=dict(l=20, r=20, t=30, b=20),
+        font=dict(family="Share Tech Mono, monospace"),
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, x=0),
+        xaxis=dict(gridcolor="rgba(0,240,255,0.08)"),
+        yaxis=dict(
+            title="Crecimiento neto",
+            gridcolor="rgba(0,240,255,0.08)",
+        ),
+        yaxis2=dict(
+            title="Stock de cierre",
+            overlaying="y",
+            side="right",
+            showgrid=False,
+        ),
+    )
+
+    grafica_anual = fig_anual.to_html(
+        full_html=False,
+        include_plotlyjs=False,
+        config={"displayModeBar": False},
+    )
+
+    # --------------------------------------------------------
+    # 6. INTERPRETACIONES DINÁMICAS
+    # --------------------------------------------------------
+
+    contexto = []
+    if pais_filtro:
+        contexto.append(f"el país <em>{pais_filtro}</em>")
+    if situacion_filtro:
+        contexto.append(f"la situación jurídica <em>{situacion_filtro}</em>")
+    texto_contexto = (
+        "Al filtrar por " + " y ".join(contexto)
+        if contexto
+        else "En el total de la población sin filtros"
+    )
+
+    if indicadores["repoblaciones"]:
+        nota_picos = (
+            f"La serie es prácticamente plana: los picos visibles son las "
+            f"{indicadores['repoblaciones']} republicaciones masivas, no un "
+            f"aumento de detenidos."
+        )
+    else:
+        nota_picos = "La serie no presenta saltos ni repoblaciones masivas."
+
+    interp_stock = (
+        f"{texto_contexto}, el stock de detenidos va de "
+        f"<strong>{indicadores['stock_inicial']:,}</strong> personas el "
+        f"{indicadores['fecha_stock_inicial']} a "
+        f"<strong>{indicadores['stock_actual']:,}</strong> el "
+        f"{indicadores['fecha_stock_actual']}, un "
+        f"<strong>{indicadores['crecimiento_total_pct']:+.2f}%</strong> en todo "
+        f"el periodo. {nota_picos}"
+    )
+
+    if not comparables.empty:
+        sube = int((comparables["variacion_neta"] > 0).sum())
+        interp_variacion = (
+            f"{texto_contexto}, de los "
+            f"{indicadores['cortes_comparables']} cortes comparables, "
+            f"<strong>{sube}</strong> muestran aumento y "
+            f"<strong>{len(comparables) - sube}</strong> muestran "
+            f"disminución, con un ritmo promedio de "
+            f"<strong>{indicadores['ritmo_diario']:+.2f} personas/día</strong>. "
+            f"El movimiento es de corto aliento: la población sube y baja en "
+            f"decenas o cientos de personas, nunca en miles."
+        )
+    else:
+        interp_variacion = (
+            "No hay cortes comparables para los filtros seleccionados."
+        )
+
+    if not por_mes.empty:
+        mes_max = por_mes.loc[por_mes["variacion_media"].idxmax()]
+        mes_min = por_mes.loc[por_mes["variacion_media"].idxmin()]
+        nombres = {
+            1: "enero", 2: "febrero", 3: "marzo", 4: "abril", 5: "mayo",
+            6: "junio", 7: "julio", 8: "agosto", 9: "septiembre",
+            10: "octubre", 11: "noviembre", 12: "diciembre",
+        }
+        interp_anual = (
+            f"Por mes del calendario, el mayor aumento promedio ocurre en "
+            f"<em>{nombres.get(int(mes_max['mes']), mes_max['mes'])}</em> "
+            f"({mes_max['variacion_media']:+,.0f} personas) y la mayor "
+            f"disminución en <em>{nombres.get(int(mes_min['mes']), mes_min['mes'])}</em> "
+            f"({mes_min['variacion_media']:+,.0f}). El estacional es débil: "
+            f"la variación media del año entero es de unas décimas de personas "
+            f"por corte."
+        )
+    else:
+        interp_anual = "Sin datos suficientes para el análisis estacional."
+
+    # --------------------------------------------------------
+    # 7. DATOS DE LA TABLA DE REPUBLICACIONES
+    # --------------------------------------------------------
+
+    republicaciones = serie[serie["es_repoblacion"]].copy()
+    filas_republicaciones = [
+        {
+            "fecha": fila["FECHA"].date().isoformat(),
+            "registros": int(fila["registros"]),
+            "stock": int(fila["stock"]),
+            "exceso": int(fila["stock"] - fila["stock_referencia"]),
+        }
+        for _, fila in republicaciones.iterrows()
+    ]
+
+    filas_anuales = [
+        {
+            "anio": int(fila["anio"]),
+            "cortes": int(fila["cortes"]),
+            "stock_cierre": int(fila["stock_cierre"]),
+            "crecimiento_neto": int(fila["crecimiento_neto"]),
+            "crecimiento_pct": float(fila["crecimiento_pct"]),
+            "repoblaciones": int(fila["repoblaciones"]),
+            "personas_por_registro": float(fila["personas_por_registro"]),
+        }
+        for _, fila in anual.iterrows()
+    ]
+
+    filas_mes = [
+        {
+            "mes": int(fila["mes"]),
+            "variacion_media": float(fila["variacion_media"]),
+            "cortes": int(fila["cortes"]),
+        }
+        for _, fila in por_mes.iterrows()
+    ]
+
+    # --------------------------------------------------------
+    # 8. RENDER
+    # --------------------------------------------------------
+
+    return render_template(
+        'dim_3.html',
+
+        titulo="Dimensión Temporal",
+        sin_datos=False,
+
+        stock_actual=indicadores["stock_actual"],
+        fecha_stock_actual=indicadores["fecha_stock_actual"],
+        crecimiento_total_pct=indicadores["crecimiento_total_pct"],
+        ritmo_diario=indicadores["ritmo_diario"],
+        total_cortes=indicadores["total_cortes"],
+        cortes_comparables=indicadores["cortes_comparables"],
+        repoblaciones=indicadores["repoblaciones"],
+        stock_inicial=indicadores["stock_inicial"],
+        fecha_stock_inicial=indicadores["fecha_stock_inicial"],
+
+        grafica_stock=grafica_stock,
+        grafica_variacion=grafica_variacion,
+        grafica_anual=grafica_anual,
+
+        interp_stock=interp_stock,
+        interp_variacion=interp_variacion,
+        interp_anual=interp_anual,
+
+        filas_republicaciones=filas_republicaciones,
+        filas_anuales=filas_anuales,
+        filas_mes=filas_mes,
+
+        lista_paises=lista_paises,
+        lista_situaciones=lista_situaciones,
+        pais_seleccionado=pais_filtro,
+        situacion_seleccionada=situacion_filtro,
     )
 
 

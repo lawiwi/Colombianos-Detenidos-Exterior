@@ -1,0 +1,766 @@
+{% extends "base.html" %}
+
+{% block title %}
+Dimensión Temporal
+{% endblock %}
+
+
+{% block extra_css %}
+
+<link rel="stylesheet"
+      href="{{ url_for(
+          'static',
+          filename='css/style_dashboards.css'
+      ) }}">
+
+{% endblock %}
+
+
+{% block content %}
+
+
+<!-- ======================================================
+     ENCABEZADO
+======================================================= -->
+
+<div class="dashboard-header cyber-panel">
+
+    <h1 class="dashboard-main-title">
+        DIMENSIÓN TEMPORAL
+    </h1>
+
+    <p class="dashboard-question">
+        ¿Cómo ha cambiado el comportamiento de la población de
+        ciudadanos colombianos detenidos en el exterior durante
+        el periodo disponible?
+    </p>
+
+</div>
+
+
+<!-- ======================================================
+     ADVERTENCIA METODOLÓGICA
+======================================================= -->
+
+{% if sin_datos %}
+
+<div class="cyber-panel dashboard-warning" style="margin-bottom: 22px;">
+
+    <strong>SIN REGISTROS PARA LOS FILTROS SELECCIONADOS</strong>
+
+    <p style="margin-top: 8px; line-height: 1.65;">
+        La combinación de
+        {% if pais_seleccionado %}
+            país <em>{{ pais_seleccionado }}</em>
+        {% endif %}
+        {% if pais_seleccionado and situacion_seleccionada %}
+            y
+        {% endif %}
+        {% if situacion_seleccionada %}
+            situación jurídica <em>{{ situacion_seleccionada }}</em>
+        {% endif %}
+        no arroja ningún registro en el conjunto de datos.
+        quite alguno de los filtros del panel izquierdo para
+        continuar.
+    </p>
+
+    <p style="margin-top: 10px;">
+        <a href="{{ url_for('dimension_temporal') }}"
+           class="cyber-btn">
+            QUITAR FILTROS
+        </a>
+    </p>
+
+</div>
+
+{% else %}
+
+<div class="cyber-panel dashboard-warning" style="margin-bottom: 22px;">
+
+    <strong>LECTURA OBLIGATORIA DE LA SERIE</strong>
+
+    <p style="margin-top: 8px; line-height: 1.65;">
+        La variable <em>FECHA PUBLICACIÓN</em> no registra la fecha en
+        que ocurre una detención. El conjunto contiene
+        <strong>{{ "{:,}".format(total_cortes) }} cortes acumulados</strong>
+        y en cada uno se reitera toda la información publicada antes más
+        lo nuevo. Sumar <code>CANTIDAD</code> sobre todos los cortes
+        contaría cada persona tantas veces como cortes la incluyen y
+        produciría un pico inexistente en 2022. Por eso este tablero
+        compara el stock de cada corte con el del
+        <strong>último corte comparable</strong> anterior.
+    </p>
+
+</div>
+
+{% endif %}
+
+
+<!-- ======================================================
+     GRID PRINCIPAL
+======================================================= -->
+
+<div class="dashboard-grid">
+
+
+    <!-- ==================================================
+         COLUMNA IZQUIERDA — FILTROS + VARIABLES
+    ================================================== -->
+
+    <aside class="sidebar-left">
+
+
+        <!-- FILTROS -->
+
+        <div class="cyber-panel">
+
+            <h3 class="panel-title">
+                FILTROS
+            </h3>
+
+
+            <form method="GET"
+                  action="{{ url_for('dimension_temporal') }}">
+
+                <div class="filter-group">
+
+                    <label>PAÍS DE PRISIÓN</label>
+
+                    <select name="pais" class="cyber-input">
+
+                        <option value="">
+                            TODOS LOS PAÍSES
+                        </option>
+
+                        {% for pais in lista_paises %}
+
+                        <option value="{{ pais }}"
+                            {% if pais == pais_seleccionado %}
+                            selected
+                            {% endif %}>
+
+                            {{ pais }}
+
+                        </option>
+
+                        {% endfor %}
+
+                    </select>
+
+                </div>
+
+
+                <div class="filter-group">
+
+                    <label>SITUACIÓN JURÍDICA</label>
+
+                    <select name="situacion" class="cyber-input">
+
+                        <option value="">
+                            TODAS LAS SITUACIONES
+                        </option>
+
+                        {% for situacion in lista_situaciones %}
+
+                        <option value="{{ situacion }}"
+                            {% if situacion == situacion_seleccionada %}
+                            selected
+                            {% endif %}>
+
+                            {{ situacion }}
+
+                        </option>
+
+                        {% endfor %}
+
+                    </select>
+
+                </div>
+
+
+                <button type="submit"
+                        class="cyber-btn w-100">
+
+                    APLICAR
+
+                </button>
+
+            </form>
+
+
+            <!-- FILTROS ACTIVOS -->
+
+            <div class="filter-description">
+
+                <span class="neon-text">
+                    FILTROS ACTIVOS
+                </span>
+
+                <div class="pais-activo">
+
+                    {% if pais_seleccionado %}
+                        <span>{{ pais_seleccionado }}</span>
+                    {% else %}
+                        <span class="pais-todos">
+                            Todos los países
+                        </span>
+                    {% endif %}
+
+                </div>
+
+                <p>
+                    Situación jurídica:
+                    {% if situacion_seleccionada %}
+                        {{ situacion_seleccionada }}
+                    {% else %}
+                        Todas
+                    {% endif %}
+                </p>
+
+            </div>
+
+        </div>
+
+
+        <!-- DESCRIPCIÓN DE VARIABLES -->
+
+        <div class="cyber-panel variables-panel-sidebar">
+
+            <h3 class="panel-title">
+                VARIABLES UTILIZADAS
+            </h3>
+
+
+            <div class="variable-item-sidebar">
+
+                <span class="variable-name-sidebar">
+                    FECHA PUBLICACIÓN
+                </span>
+
+                <span class="variable-desc-sidebar">
+                    Fecha del corte. El conjunto tiene
+                    {{ total_cortes }} fechas distintas, que son
+                    {{ total_cortes }} cortes y no
+                    {{ total_cortes }} periodos de detención.
+                </span>
+
+            </div>
+
+
+            <div class="variable-item-sidebar">
+
+                <span class="variable-name-sidebar">
+                    CANTIDAD
+                </span>
+
+                <span class="variable-desc-sidebar">
+                    Personas representadas. Su suma dentro de una
+                    fecha de corte da el stock de detenidos
+                    vigente en ese momento.
+                </span>
+
+            </div>
+
+
+            <div class="variable-item-sidebar">
+
+                <span class="variable-name-sidebar">
+                    PAIS PRISIÓN
+                </span>
+
+                <span class="variable-desc-sidebar">
+                    País donde se encuentra recluida la persona.
+                    Se usa como filtro del tablero.
+                </span>
+
+            </div>
+
+
+            <div class="variable-item-sidebar">
+
+                <span class="variable-name-sidebar">
+                    SITUACIÓN JURÍDICA
+                </span>
+
+                <span class="variable-desc-sidebar">
+                    Estado procesal del detenido. Se usa como
+                    segundo filtro del tablero.
+                </span>
+
+            </div>
+
+        </div>
+
+    </aside>
+
+
+    <!-- ==================================================
+         COLUMNA CENTRAL — KPIs + GRÁFICAS
+    ================================================== -->
+
+    {% if not sin_datos %}
+
+    <main class="main-dashboard">
+
+
+        <!-- ==============================================
+             INDICADORES
+        =============================================== -->
+
+        <div class="kpi-container">
+
+
+            <div class="cyber-panel kpi-card">
+
+                <p class="kpi-label">
+                    STOCK EN EL ÚLTIMO CORTE
+                </p>
+
+                <h2 class="kpi-value">
+                    {{ "{:,}".format(stock_actual) }}
+                </h2>
+
+                <p class="kpi-description">
+                    Personas al {{ fecha_stock_actual }} ·
+                    {{ total_cortes }} cortes publicados
+                </p>
+
+            </div>
+
+
+            <div class="cyber-panel kpi-card">
+
+                <p class="kpi-label">
+                    CRECIMIENTO DE LA SERIE
+                </p>
+
+                <h2 class="kpi-value">
+                    {{ "%+.2f"|format(crecimiento_total_pct) }}%
+                </h2>
+
+                <p class="kpi-description">
+                    De {{ "{:,}".format(stock_inicial) }} en
+                    {{ fecha_stock_inicial }} a
+                    {{ "{:,}".format(stock_actual) }} en
+                    {{ fecha_stock_actual }}
+                </p>
+
+            </div>
+
+
+            <div class="cyber-panel kpi-card">
+
+                <p class="kpi-label">
+                    RITMO DIARIO PROMEDIO
+                </p>
+
+                <h2 class="kpi-value">
+                    {{ "%+.2f"|format(ritmo_diario) }}
+                </h2>
+
+                <p class="kpi-description">
+                    Personas por día en los
+                    {{ cortes_comparables }} cortes comparables
+                </p>
+
+            </div>
+
+        </div>
+
+
+        <!-- ==============================================
+             GRÁFICA 1 — STOCK POR CORTE
+        =============================================== -->
+
+        <div class="cyber-panel chart-panel">
+
+            <h3 class="panel-title">
+                EVOLUCIÓN DEL STOCK POR CORTE
+            </h3>
+
+            <div class="plot-container">
+                {{ grafica_stock | safe }}
+            </div>
+
+            <div class="chart-interpretation">
+
+                <strong>INTERPRETACIÓN</strong>
+
+                <p>{{ interp_stock | safe }}</p>
+
+            </div>
+
+        </div>
+
+
+        <!-- ==============================================
+             GRÁFICA 2 — VARIACIÓN NETA
+        =============================================== -->
+
+        <div class="cyber-panel chart-panel">
+
+            <h3 class="panel-title">
+                VARIACIÓN RESPECTO AL CORTE COMPARABLE ANTERIOR
+            </h3>
+
+            <div class="plot-container">
+                {{ grafica_variacion | safe }}
+            </div>
+
+            <div class="chart-interpretation">
+
+                <strong>INTERPRETACIÓN</strong>
+
+                <p>{{ interp_variacion | safe }}</p>
+
+            </div>
+
+        </div>
+
+
+        <!-- ==============================================
+             GRÁFICA 3 — CIERRE Y CRECIMIENTO ANUAL
+        =============================================== -->
+
+        <div class="cyber-panel chart-panel">
+
+            <h3 class="panel-title">
+                CIERRE Y CRECIMIENTO NETO POR AÑO
+            </h3>
+
+            <div class="plot-container">
+                {{ grafica_anual | safe }}
+            </div>
+
+            <div class="chart-interpretation">
+
+                <strong>INTERPRETACIÓN</strong>
+
+                <p>{{ interp_anual | safe }}</p>
+
+            </div>
+
+        </div>
+
+
+        <!-- ==============================================
+             TABLA DE REPUBLICACIONES MASIVAS
+        =============================================== -->
+
+        {% if filas_republicaciones %}
+
+        <div class="cyber-panel chart-panel">
+
+            <h3 class="panel-title">
+                CORTES EXCLUIDOS COMO REPUBLICACIONES MASIVAS
+            </h3>
+
+            <div class="relational-table-wrap"
+                 style="overflow-x: auto;">
+
+                <table class="relational-table"
+                       style="width: 100%; border-collapse: collapse;">
+
+                    <thead>
+                        <tr>
+                            <th style="padding: 9px 11px;
+                                       text-align: left;">Fecha</th>
+                            <th style="padding: 9px 11px;
+                                       text-align: left;">Registros</th>
+                            <th style="padding: 9px 11px;
+                                       text-align: left;">Stock</th>
+                            <th style="padding: 9px 11px;
+                                       text-align: left;">
+                                Exceso sobre la referencia
+                            </th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        {% for fila in filas_republicaciones %}
+                        <tr>
+                            <td style="padding: 9px 11px;">
+                                {{ fila.fecha }}
+                            </td>
+                            <td style="padding: 9px 11px;">
+                                {{ "{:,}".format(fila.registros) }}
+                            </td>
+                            <td style="padding: 9px 11px;">
+                                {{ "{:,}".format(fila.stock) }}
+                            </td>
+                            <td style="padding: 9px 11px;">
+                                {{ "+{:,}".format(fila.exceso) }}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+
+                </table>
+
+            </div>
+
+            <p style="line-height: 1.65;">
+                Estos cortes superan 1,5 veces el total del corte
+                comparable anterior. El mayor aumento normal de la
+                serie es de 4,4 %, así que un salto de esta magnitud
+                corresponde a una republicación del archivo y no a
+                nuevasisanat detenciones.
+            </p>
+
+        </div>
+
+        {% endif %}
+
+
+        <!-- ==============================================
+             DETALLE POR AÑO
+        =============================================== -->
+
+        <div class="cyber-panel chart-panel">
+
+            <h3 class="panel-title">
+                DETALLE ANUAL DE LA SERIE
+            </h3>
+
+            <div style="overflow-x: auto;">
+
+                <table class="relational-table"
+                       style="width: 100%; border-collapse: collapse;">
+
+                    <thead>
+                        <tr>
+                            <th style="padding: 9px 11px;
+                                       text-align: left;">Año</th>
+                            <th style="padding: 9px 11px;
+                                       text-align: left;">Cortes</th>
+                            <th style="padding: 9px 11px;
+                                       text-align: left;">
+                                Stock de cierre
+                            </th>
+                            <th style="padding: 9px 11px;
+                                       text-align: left;">
+                                Crecimiento neto
+                            </th>
+                            <th style="padding: 9px 11px;
+                                       text-align: left;">Personas
+                                por registro</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        {% for fila in filas_anuales %}
+                        <tr>
+                            <td style="padding: 9px 11px;">
+                                {{ fila.anio }}
+                            </td>
+                            <td style="padding: 9px 11px;">
+                                {{ fila.cortes }}
+                                {% if fila.repoblaciones %}
+                                    <span class="warning">
+                                        (incluye {{ fila.repoblaciones }}
+                                        republicación/es)
+                                    </span>
+                                {% endif %}
+                            </td>
+                            <td style="padding: 9px 11px;">
+                                {{ "{:,}".format(fila.stock_cierre) }}
+                            </td>
+                            <td style="padding: 9px 11px;">
+                                {{ "{:+,.0f}".format(fila.crecimiento_neto) }}
+                                ({{ "%+.2f"|format(fila.crecimiento_pct) }}%)
+                            </td>
+                            <td style="padding: 9px 11px;">
+                                {{ fila.personas_por_registro }}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        </div>
+
+
+    </main>
+
+
+    <!-- ==================================================
+         COLUMNA DERECHA — CONCLUSIONES
+    ================================================== -->
+
+    <aside class="cyber-panel sidebar-right">
+
+        <h3 class="panel-title">
+            CONCLUSIONES
+        </h3>
+
+
+        <div class="dashboard-conclusion">
+
+            <span class="neon-text">
+                CONOCIMIENTO 1
+            </span>
+
+            <p>
+                La población detenida en el exterior es
+                <strong>estable</strong>, no creciente. El stock pasa
+                de {{ "{:,}".format(stock_inicial) }} personas en
+                {{ fecha_stock_inicial }} a
+                {{ "{:,}".format(stock_actual) }} en
+                {{ fecha_stock_actual }},
+                un {{ "%+.2f"|format(crecimiento_total_pct) }}% en más de
+                siete años, con un ritmo de apenas
+                {{ "%.2f"|format(ritmo_diario) }} personas por día.
+            </p>
+
+        </div>
+
+
+        <div class="dashboard-conclusion">
+
+            <span class="neon-text">
+                CONOCIMIENTO 2
+            </span>
+
+            <p>
+                Los picos de la serie son
+                <strong>artefactos de republicación</strong>, no un
+                aumento real de detenidos. Dos cortes, el 24 de enero
+                de 2022 y el 4 de enero de 2023, superan 1,5 veces el
+                total del corte anterior. Leídos como crecimiento,
+                sugerirían unaumento detenida en 2022 que nunca
+                ocurrió.
+            </p>
+
+        </div>
+
+
+        <div class="dashboard-conclusion">
+
+            <span class="neon-text">
+                CONOCIMIENTO 3
+            </span>
+
+            <p>
+                Cada registro representa menos personas que antes:
+                el promedio cae de 5,03 en 2022 a 4,51 en 2025. La
+                población detenida no solo se mantiene, sino que se
+                <strong>fragmenta</strong> en un número mayor de
+                registros, lo que apunta a un cambio en la forma de
+                reportar la información más que en la magnitud de la
+                población.
+            </p>
+
+        </div>
+
+
+        <div class="dashboard-warning">
+
+            <strong>
+                LIMITACIÓN DEL ANÁLISIS
+            </strong>
+
+            <p>
+                El conjunto no trae la <em>fecha de la detención</em>,
+                solo la del corte, por lo que no es posible medir
+                cuántos eventos de detención ocurrieron por mes ni
+                establecer <em>estacionalidad</em> real. Además el
+                calendario de publicación es irregular: hay años con
+                un solo corte y huecos de hasta seis meses, de modo que
+                la variación se expresa por día y no por mes.
+            </p>
+
+        </div>
+
+
+        <div class="dashboard-decision">
+
+            <strong>
+                POSIBLE DECISIÓN SUSTENTADA
+            </strong>
+
+            <p>
+                Dado que la población detenida es estable y no crece,
+                la asignación de recursos de asistencia consular
+                debe tratarse como un <strong>mantenimiento estable</strong>
+                y no como una respuesta a una emergencia. En cambio,
+                los procesos internos de la entidad publicadora deben
+                revisarse: las republicaciones masivas obligan a
+                corregir el archivo y generan picos engañosos en
+                cualquier análisis que sume por periodo.
+            </p>
+
+        </div>
+
+
+    </aside>
+
+    {% else %}
+
+    <main class="main-dashboard">
+
+        <div class="cyber-panel chart-panel is-visible">
+
+            <h3 class="panel-title">
+                SIN REGISTROS QUE ANALIZAR
+            </h3>
+
+            <p style="line-height: 1.65;">
+                La combinación de filtros seleccionada no
+                deja registros en el conjunto de datos, así que
+                no hay cortes que comparar. Quite alguno de los
+                filtros del panel izquierdo.
+            </p>
+
+            <p style="margin-top: 16px;">
+                <a href="{{ url_for('dimension_temporal') }}"
+                   class="cyber-btn">
+                    QUITAR FILTROS
+                </a>
+            </p>
+
+        </div>
+
+    </main>
+
+    {% endif %}
+
+
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+
+    const elements = document.querySelectorAll(
+        '.kpi-card, .chart-panel'
+    );
+
+    if (!('IntersectionObserver' in window)) {
+        elements.forEach(function (el) {
+            el.classList.add('is-visible');
+        });
+        return;
+    }
+
+    const observer = new IntersectionObserver(
+        function (entries) {
+            entries.forEach(function (entry) {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('is-visible');
+                    observer.unobserve(entry.target);
+                }
+            });
+        },
+        { threshold: 0.10, rootMargin: '0px 0px -30px 0px' }
+    );
+
+    elements.forEach(function (el) {
+        observer.observe(el);
+    });
+
+});
+</script>
+
+{% endblock %}

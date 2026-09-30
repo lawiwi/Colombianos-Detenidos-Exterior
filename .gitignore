@@ -1,0 +1,22 @@
+# Codigo compilado por Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Entornos virtuales
+.venv/
+venv/
+env/
+
+# Editores y sistema operativo
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Salidas generadas por los modulos de analisis de src/
+# Se regeneran con: python src/analisis_temporal.py
+data/analisis_temporal/
