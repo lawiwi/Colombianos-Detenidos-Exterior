@@ -228,6 +228,7 @@ def serie_temporal(df):
 COLUMNAS_ANUALES = [
     "anio", "cortes", "stock_cierre", "crecimiento_neto",
     "crecimiento_pct", "repoblaciones", "personas_por_registro",
+    "registros_min", "registros_cierre",
 ]
 
 
@@ -261,6 +262,8 @@ def resumen_por_anio(serie):
             "personas_por_registro": round(
                 grupo.iloc[-1]["personas_por_registro"], 2
             ),
+            "registros_min": int(grupo["registros"].min()),
+            "registros_cierre": int(grupo.iloc[-1]["registros"]),
         })
 
     return pd.DataFrame(filas).sort_values("anio").reset_index(drop=True)
@@ -290,6 +293,111 @@ def variacion_por_mes_del_ano(serie):
     resumen["variacion_media"] = resumen["variacion_media"].round(1)
 
     return resumen.sort_values("mes").reset_index(drop=True)
+
+
+# ============================================================
+# LECTURA INGENUA (CONTRASTE)
+# ============================================================
+# El analisis temporal descarta sumar CANTIDAD a lo largo de los cortes
+# por el motivo expuesto en la cabecera del modulo. Para sustentar esa
+# decision con evidencia y no solo con un argumento, aqui se calcula
+# deliberadamente esa suma, que es el error que la dimension busca
+# evidenciar. La pagina de analisis la muestra al lado del crecimiento
+# real para que la diferencia sea visible.
+
+COLUMNAS_INGENUAS = [
+    "anio", "cortes", "suma_ingenua", "stock_cierre",
+    "crecimiento_ingenuo_pct", "crecimiento_real_pct", "repoblaciones",
+]
+
+
+def suma_ingenua_por_anio(serie):
+    """
+    Suma el stock de todos los cortes de cada ano, sin descontar
+    repoblaciones.
+
+    Devuelve, por ano, el total que arroja el metodo invalido, su
+    variacion contra el ano anterior y, al lado, el crecimiento real
+    que devuelve resumen_por_anio. La distancia entre las dos columnas
+    es la evidencia del conocimiento sobre el pico de 2022.
+    """
+    if serie.empty:
+        return pd.DataFrame(columns=COLUMNAS_INGENUAS)
+
+    real = resumen_por_anio(serie).set_index("anio")
+
+    filas = []
+    suma_previa = None
+
+    for anio, grupo in serie.groupby("ANIO"):
+        suma = int(grupo["stock"].sum())
+
+        filas.append({
+            "anio": int(anio),
+            "cortes": int(len(grupo)),
+            "suma_ingenua": suma,
+            "stock_cierre": int(grupo.iloc[-1]["stock"]),
+            "crecimiento_ingenuo_pct": round(
+                (suma / suma_previa - 1) * 100, 2
+            ) if suma_previa else 0.0,
+            "crecimiento_real_pct": float(
+                real.loc[anio, "crecimiento_pct"]
+            ) if anio in real.index else 0.0,
+            "repoblaciones": int(grupo["es_repoblacion"].sum()),
+        })
+
+        suma_previa = suma
+
+    return pd.DataFrame(filas).sort_values("anio").reset_index(drop=True)
+
+
+# ============================================================
+# EVIDENCIAS DE LOS CONOCIMIENTOS
+# ============================================================
+
+def duracion_en_anos(serie):
+    """
+    Anos decorridos entre el primer y el ultimo corte.
+
+    Se usa para enunciar el periodo en el texto, en lugar de escribir
+    una cantidad fija que quedaria desactualizada si la fuente publica
+    un corte nuevo.
+    """
+    if serie.empty:
+        return 0.0
+
+    dias = (serie.iloc[-1]["FECHA"] - serie.iloc[0]["FECHA"]).days
+    return round(dias / 365.25, 2)
+
+
+def mayor_repoblacion(serie):
+    """
+    La repoblacion mas grande de la serie, con su factor de exceso.
+
+    Devuelve las filas de stock y referencia junto con cuantas veces
+    el corte publicado supera al ultimo corte comparable. Es el factor
+    que dimensiona el costo de leer el pico como si fuera real.
+    """
+    candidatos = serie[
+        serie["es_repoblacion"] & serie["stock_referencia"].notna()
+    ]
+
+    if candidatos.empty:
+        return None
+
+    fila = candidatos.loc[candidatos["stock"].idxmax()]
+
+    referencia = float(fila["stock_referencia"])
+
+    return {
+        "fecha": fila["FECHA"].date().isoformat(),
+        "anio": int(fila["ANIO"]),
+        "registros": int(fila["registros"]),
+        "stock": int(fila["stock"]),
+        "stock_referencia": int(referencia),
+        "exceso": int(fila["stock"] - referencia),
+        "factor": round(fila["stock"] / referencia, 2) if referencia else 0.0,
+    }
 
 
 # ============================================================
@@ -421,6 +529,8 @@ def main():
     indicadores_ = indicadores(serie)
     anual = resumen_por_anio(serie)
     por_mes = variacion_por_mes_del_ano(serie)
+    ingenua = suma_ingenua_por_anio(serie)
+    pico = mayor_repoblacion(serie)
 
     print("\nSerie de cortes")
     print("-" * 70)
@@ -430,6 +540,7 @@ def main():
     print("Periodo de la serie      :",
           indicadores_["fecha_stock_inicial"], "a",
           indicadores_["fecha_stock_actual"])
+    print("Duracion del periodo     :", duracion_en_anos(serie), "anos")
 
     print("\nIndicadores")
     print("-" * 70)
@@ -450,6 +561,18 @@ def main():
     print("\nResumen por ano")
     print("-" * 70)
     print(anual.to_string(index=False))
+
+    print("\nContraste con la lectura ingenua (metodo invalido)")
+    print("-" * 70)
+    print(ingenua.to_string(index=False))
+
+    if pico:
+        print("\nMayor repoblacion")
+        print("-" * 70)
+        print(f"  {pico['fecha']}  {pico['registros']:,} registros  "
+              f"{pico['stock']:,} personas  "
+              f"({pico['factor']}x su referencia de "
+              f"{pico['stock_referencia']:,})")
 
     print("\nVariacion promedio por mes del ano")
     print("-" * 70)
@@ -472,6 +595,8 @@ def main():
     anual.to_csv(os.path.join(RUTA_SALIDA, "resumen_anual.csv"),
                  index=False, encoding="utf-8-sig")
     por_mes.to_csv(os.path.join(RUTA_SALIDA, "variacion_por_mes.csv"),
+                   index=False, encoding="utf-8-sig")
+    ingenua.to_csv(os.path.join(RUTA_SALIDA, "suma_ingenua_por_anio.csv"),
                    index=False, encoding="utf-8-sig")
 
     print("\nArchivos generados en:", RUTA_SALIDA)

@@ -1,0 +1,946 @@
+{% extends "base.html" %}
+
+{% block title %}
+Análisis Temporal
+{% endblock %}
+
+
+{% block extra_css %}
+
+<link rel="stylesheet"
+      href="{{ url_for(
+          'static',
+          filename='css/style_analysis.css'
+      ) }}">
+
+{% endblock %}
+
+
+{% block content %}
+
+<div class="na-wrapper">
+
+
+    <!-- ======================================================
+         HERO
+    ======================================================= -->
+
+    <header class="na-hero">
+
+        <p class="na-kicker">
+            Dimensión Temporal · Análisis Completo
+        </p>
+
+        <h1 class="na-title">
+            EVOLUCIÓN DE LA POBLACIÓN DETENIDA EN EL EXTERIOR
+        </h1>
+
+        <p class="na-question">
+            ¿Cómo ha cambiado el comportamiento de la población de
+            ciudadanos colombianos detenidos en el exterior durante el
+            periodo disponible?
+        </p>
+
+        <div class="na-meta">
+            <span>Fuente: MinExterior</span>
+            <span>{{ "{:,}".format(total_cortes) }} cortes</span>
+            <span>{{ fecha_inicial }} a {{ fecha_final }}</span>
+            <span>Dimensión temporal</span>
+        </div>
+
+        <a href="{{ url_for('dimension_temporal') }}"
+           class="na-back-btn">
+            ← VOLVER AL TABLERO
+        </a>
+
+    </header>
+
+
+    <!-- ======================================================
+         01 · METODOLOGÍA
+    ======================================================= -->
+
+    <section class="na-section">
+
+        <div class="na-section-header">
+            <span class="na-section-number">01</span>
+            <h2 class="na-section-title">METODOLOGÍA</h2>
+        </div>
+
+        <div class="na-panel">
+
+            <p class="analysis-text">
+                La variable <code>FECHA PUBLICACIÓN</code> no registra la
+                fecha en que ocurre una detención. El conjunto contiene
+                <strong>{{ "{:,}".format(total_cortes) }} fechas
+                distintas</strong> y en cada una se reitera todo lo
+                publicado antes más lo nuevo. Las combinaciones de
+                <code>PAIS PRISIÓN</code>, <code>CONSULADO</code> y
+                <code>GÉNERO</code> de un corte son subconjunto exacto de
+                las del corte siguiente, lo que confirma que cada fecha es
+                una fotografía de la población acumulada y no un periodo
+                de detención.
+            </p>
+
+            <p class="analysis-text">
+                Por eso la dimensión no suma <code>CANTIDAD</code> sobre los
+                cortes. Sumar los {{ "{:,}".format(total_cortes) }}
+                contaría cada persona tantas veces como cortes la
+                incluyan y fabricaría un pico en 2022 que no ocurrió. El
+                procedimiento correcto es comparar el stock de cada corte
+                con el del <strong>último corte comparable</strong>
+                anterior.
+            </p>
+
+            <div class="na-badges">
+
+                <div class="na-badge-card">
+                    <span class="na-badge-label">Cortes publicados</span>
+                    <span class="na-badge-value">
+                        {{ "{:,}".format(total_cortes) }}
+                    </span>
+                    <span class="na-badge-meta">
+                        entre {{ fecha_inicial }} y {{ fecha_final }}
+                    </span>
+                </div>
+
+                <div class="na-badge-card is-predom">
+                    <span class="na-badge-label">Stock inicial</span>
+                    <span class="na-badge-value">
+                        {{ "{:,}".format(stock_inicial) }}
+                    </span>
+                    <span class="na-badge-meta">
+                        personas en {{ fecha_inicial }}
+                    </span>
+                </div>
+
+                <div class="na-badge-card is-predom">
+                    <span class="na-badge-label">Stock final</span>
+                    <span class="na-badge-value">
+                        {{ "{:,}".format(stock_actual) }}
+                    </span>
+                    <span class="na-badge-meta">
+                        personas en {{ fecha_final }}
+                    </span>
+                </div>
+
+                <div class="na-badge-card is-minor">
+                    <span class="na-badge-label">
+                        Cortes comparables
+                    </span>
+                    <span class="na-badge-value">
+                        {{ "{:,}".format(cortes_comparables) }}
+                    </span>
+                    <span class="na-badge-meta">
+                        excluidos {{ repoblaciones }} por repoblación
+                    </span>
+                </div>
+
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <!-- ======================================================
+         02 · VARIABLES Y ALCANCE DEL ANÁLISIS
+    ======================================================= -->
+
+    <section class="na-section">
+
+        <div class="na-section-header">
+            <span class="na-section-number">02</span>
+            <h2 class="na-section-title">
+                VARIABLES Y ALCANCE DEL ANÁLISIS
+            </h2>
+        </div>
+
+        <div class="na-panel">
+
+            <table class="na-table">
+
+                <thead>
+                    <tr>
+                        <th>Variable</th>
+                        <th>Tipo</th>
+                        <th>Uso en la dimensión</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    <tr>
+                        <td><code>FECHA PUBLICACIÓN</code></td>
+                        <td>Temporal</td>
+                        <td>
+                            Define los {{ "{:,}".format(total_cortes) }}
+                            cortes. Es la variable que estructura toda la
+                            serie.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><code>CANTIDAD</code></td>
+                        <td>Numérica</td>
+                        <td>
+                            Personas representadas. Su suma dentro de un
+                            corte da el stock; su diferencia entre cortes
+                            comparables da la variación.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><code>PAIS PRISIÓN</code></td>
+                        <td>Territorial</td>
+                        <td>
+                            Filtro del tablero. Permite verificar que el
+                            comportamiento temporal se repite dentro de
+                            cada país.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><code>SITUACIÓN JURÍDICA</code></td>
+                        <td>Categórica</td>
+                        <td>
+                            Segundo filtro del tablero, para separar el
+                            ritmo de los detenidos en investigación del
+                            ritmo de los condemned.
+                        </td>
+                    </tr>
+                </tbody>
+
+            </table>
+
+            <p class="na-note">
+                <strong>Alcance.</strong>
+                El calendario de publicación es irregular. 2018 tiene un
+                solo corte, 2019 tiene tres y hay huecos de hasta seis
+                meses, por lo que la comparación se expresa por día y no
+                por mes. Las 12 variables del conjunto se reduce a dos
+                para el cálculo: leer el archivo completo cuesta cinco
+                veces más memoria sin aportar nada a esta dimensión.
+            </p>
+
+        </div>
+
+    </section>
+
+
+    <!-- ======================================================
+         03 · SERIE DE CORTES
+    ======================================================= -->
+
+    <section class="na-section">
+
+        <div class="na-section-header">
+            <span class="na-section-number">03</span>
+            <h2 class="na-section-title">
+                SERIE DE CORTES Y REPUBLICACIONES MASIVAS
+            </h2>
+        </div>
+
+        <div class="na-panel">
+
+            <p class="analysis-text">
+                Los cortes se marcan automáticamente como
+                <strong>republicación masiva</strong> cuando su total
+                supera {{ "%.1f"|format(umbral_repoblacion) }} veces el del
+                último corte comparable. No es un umbral ajustado a mano:
+                el mayor aumento normal de la serie es de
+                {{ "%.2f"|format(umbral_holgura_normal_pct) }} % y el menor
+                de los saltos detectados es de
+                {{ "%.0f"|format(umbral_salto_minimo_pct) }} %, de modo que
+                la regla separa los dos casos sin ambigüedad. Quedan
+                <strong>{{ filas_republicaciones|length }} cortes</strong>
+                marcados.
+            </p>
+
+            <table class="na-table">
+
+                <thead>
+                    <tr>
+                        <th>Fecha del corte</th>
+                        <th>Registros</th>
+                        <th>Stock</th>
+                        <th>Stock de referencia</th>
+                        <th>Exceso</th>
+                        <th>Veces la mediana</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for fila in filas_republicaciones %}
+                    <tr>
+                        <td>{{ fila.fecha }}</td>
+                        <td>{{ "{:,}".format(fila.registros) }}</td>
+                        <td>{{ "{:,}".format(fila.stock) }}</td>
+                        <td>{{ "{:,}".format(fila.stock_referencia) }}</td>
+                        <td>+{{ "{:,}".format(fila.exceso) }}</td>
+                        <td>{{ fila.veces_mediana }}×</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+
+            </table>
+
+            <p class="na-note">
+                <strong>Por qué importa.</strong>
+                La mediana de la serie es
+                {{ "{:,.0f}".format(mediana_stock) }} personas y
+                {{ "{:,.0f}".format(mediana_registros) }} registros por
+                corte. Los dos cortes marcados superan esa mediana y con
+                ellosAny registro aparece hasta seis veces. Ninguna
+                Mercy crecimiento real llega a esa magnitud, de modo que
+                leerlos como FierroRl indicate un augmentation inexistente.
+            </p>
+
+        </div>
+
+    </section>
+
+
+    <!-- ======================================================
+         04 · LECTURA COMPARADA POR AÑO
+    ======================================================= -->
+
+    <section class="na-section">
+
+        <div class="na-section-header">
+            <span class="na-section-number">04</span>
+            <h2 class="na-section-title">
+                LECTURA COMPARADA POR AÑO
+            </h2>
+        </div>
+
+        <div class="na-panel">
+
+            <p class="analysis-text">
+                La tabla contrasta las dos lecturas posibles del mismo
+                conjunto. La <em>suma ingenua</em> agrega el stock de
+                todos los cortes del año, con lo que cuenta cada persona
+                tantas veces como cortes la incluyen. El
+                <em>crecimiento neto</em> solo suma las variaciones
+                entre cortes comparables.
+            </p>
+
+            <table class="na-table">
+
+                <thead>
+                    <tr>
+                        <th>Año</th>
+                        <th>Cortes</th>
+                        <th>Suma ingenua</th>
+                        <th>Crecimiento ingenuo</th>
+                        <th>Stock de cierre</th>
+                        <th>Crecimiento neto real</th>
+                        <th>Personas por registro</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for fila in filas_comparativas %}
+                    <tr>
+                        <td>{{ fila.anio }}</td>
+                        <td>
+                            {{ fila.cortes }}
+                            {% if fila.repoblaciones %}
+                                <span class="na-note">
+                                    (incluye {{ fila.repoblaciones }}
+                                    republicación/es)
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td>{{ "{:,}".format(fila.suma_ingenua) }}</td>
+                        <td>
+                            {{ "%+.2f"|format(fila.crecimiento_ingenuo_pct) }}%
+                        </td>
+                        <td>{{ "{:,}".format(fila.stock_cierre) }}</td>
+                        <td>
+                            {{ "{:+,.0f}".format(fila.crecimiento_neto) }}
+                            ({{ "%+.2f"|format(fila.crecimiento_pct) }}%)
+                        </td>
+                        <td>{{ fila.personas_por_registro }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+
+            </table>
+
+            <p class="na-note">
+                <strong>Lectura.</strong>
+                La columna ingenua varía con el número de cortes del
+                año y no con la población:
+                {{ anio_mas_cortes.anio if anio_mas_cortes else "—" }},
+                con {{ anio_mas_cortes.cortes if anio_mas_cortes else 0 }}
+                cortes, aparece por encima de
+                {{ filas_comparativas[-1].anio }}, que tiene
+                {{ filas_comparativas[-1].cortes }} y una población
+                mayor. La columna real se mantiene entre
+                {{ "%+.2f"|format(filas_comparativas|map(attribute='crecimiento_pct')|min) }}%
+                y
+                {{ "%+.2f"|format(filas_comparativas|map(attribute='crecimiento_pct')|max) }}%
+                en todo el periodo. La distancia entre ambas columnas
+                es la medida del error que evita el método usado en
+                esta dimensión.
+            </p>
+
+        </div>
+
+    </section>
+
+
+    <!-- ======================================================
+         05 · CONOCIMIENTOS EVIDENTES
+    ======================================================= -->
+
+    <section class="na-section">
+
+        <div class="na-section-header">
+            <span class="na-section-number">05</span>
+            <h2 class="na-section-title">
+                CONOCIMIENTOS EVIDENTES
+            </h2>
+        </div>
+
+
+        <!-- ==================================================
+             CONOCIMIENTO 1
+        ================================================== -->
+
+        <div class="na-knowledge" id="k1">
+
+            <div class="na-knowledge-head">
+                <span class="na-knowledge-num">K1</span>
+                <h3 class="na-knowledge-title">
+                    LA POBLACIÓN DETENIDA ES ESTABLE, NO CRECIENTE
+                </h3>
+            </div>
+
+            <div class="na-knowledge-flow">
+
+                <div class="na-k-step na-k-step--wide">
+                    <span class="na-k-step__label">Pregunta</span>
+                    <p class="na-k-step__text">
+                        ¿Ha crecido la población de colombianos
+                        detenidos en el exterior a lo largo del
+                        periodo?
+                    </p>
+                </div>
+
+                <div class="na-k-step">
+                    <span class="na-k-step__label">Variables</span>
+                    <p class="na-k-step__text">
+                        <code>FECHA PUBLICACIÓN</code> (temporal) y
+                        <code>CANTIDAD</code> (numérica, agregadora).
+                    </p>
+                </div>
+
+                <div class="na-k-step">
+                    <span class="na-k-step__label">Procedimiento</span>
+                    <p class="na-k-step__text">
+                        Suma de <code>CANTIDAD</code> por fecha de corte
+                        para obtener el stock, y comparación del stock
+                        del primer y el último corte.
+                    </p>
+                </div>
+
+                <div class="na-k-step na-k-step--wide na-k-step--evidencia">
+                    <span class="na-k-step__label">Evidencia</span>
+                    <p class="na-k-step__text">
+                        El stock pasa de
+                        <strong>{{ "{:,}".format(stock_inicial) }}</strong>
+                        personas el {{ fecha_inicial }} a
+                        <strong>{{ "{:,}".format(stock_actual) }}</strong>
+                        el {{ fecha_final }}, un
+                        <span class="na-stat">
+                            {{ "%+.2f"|format(crecimiento_total_pct) }}%
+                        </span>
+                        en {{ anios_periodo_texto }}. Gráfica
+                        <em>"Evolución del stock por corte"</em> del
+                        tablero de la dimensión temporal, generada con
+                        Plotly a partir del conjunto de datos.
+                    </p>
+                    <div class="na-k-chart">
+                        {{ grafica_k1 | safe }}
+                    </div>
+                </div>
+
+                <div class="na-k-step">
+                    <span class="na-k-step__label">Hallazgo</span>
+                    <p class="na-k-step__text">
+                        El stock crece apenas
+                        <strong>{{ "{:,}".format(stock_actual - stock_inicial) }}
+                        personas</strong> en todo el periodo, equivalente
+                        a <strong>{{ "%.2f"|format(ritmo_diario) }}
+                        personas por día</strong>. La serie es
+                        esencialmente plana.
+                    </p>
+                </div>
+
+                <div class="na-k-step">
+                    <span class="na-k-step__label">Interpretación</span>
+                    <p class="na-k-step__text">
+                        La detención de colombianos en el exterior no es
+                        un fenómeno expansivo. {{ anios_periodo_texto|capitalize }} de
+                        publicaciones consecutivas sobre una base
+                        praticamente constante indican un
+                        <em>equilibrio de flujo</em>: las salidas por
+                        deportación o condena compensan el
+                        ingreso de nuevos detenidos.
+                    </p>
+                </div>
+
+                <div class="na-k-step na-k-step--wide na-k-step--utility">
+                    <span class="na-k-step__label">Utilidad</span>
+                    <p class="na-k-step__text">
+                        Permite dimensionar la asistencia consular
+                        como un <em>servicio permanente</em> y no como
+                        una respuesta a una emergencia. Un presupuesto
+                        calculado sobre el pico de
+                        {{ pico_repoblacion.fecha[:4] if pico_repoblacion else '—' }} habría sido
+                        {{ factor_pico_texto }} superior al que la
+                        población real exige.
+                    </p>
+                </div>
+
+                <div class="na-k-step na-k-step--wide na-k-step--limit">
+                    <span class="na-k-step__label">Limitación</span>
+                    <p class="na-k-step__text">
+                        El conjunto no permite distinguir el ingreso de
+                        una nueva detención de la permanencia de quien
+                        ya estaba detenido, porque cada corte repite el
+                        stock anterior. El ritmo diario es una variación
+                        neta del stock, no un conteo de eventos de
+                        detención.
+                    </p>
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- ==================================================
+             CONOCIMIENTO 2
+        ================================================== -->
+
+        <div class="na-knowledge" id="k2">
+
+            <div class="na-knowledge-head">
+                <span class="na-knowledge-num">K2</span>
+                <h3 class="na-knowledge-title">
+                EL PIC DE {{ fila_pico_anual.anio
+                if fila_pico_anual else "—" }} ES UN ARTEFACTO DE
+                REPUBLICACIÓN
+                </h3>
+            </div>
+
+            <div class="na-knowledge-flow">
+
+                <div class="na-k-step na-k-step--wide">
+                    <span class="na-k-step__label">Pregunta</span>
+                    <p class="na-k-step__text">
+                        ¿El fuerte aumento de detenidos que muestra la
+                        serie en {{ fila_pico_anual.anio
+                        if fila_pico_anual else "—" }} corresponde a un
+                        cambio real en la población?
+                    </p>
+                </div>
+
+                <div class="na-k-step">
+                    <span class="na-k-step__label">Variables</span>
+                    <p class="na-k-step__text">
+                        <code>FECHA PUBLICACIÓN</code> y
+                        <code>CANTIDAD</code>, comparados con el número
+                        de registros por corte.
+                    </p>
+                </div>
+
+                <div class="na-k-step">
+                    <span class="na-k-step__label">Procedimiento</span>
+                    <p class="na-k-step__text">
+                        Se calculó el total de cada corte y se dividió
+                        por el total del último corte comparable. Se
+                        marcó todo corte que superara
+                        {{ "%.1f"|format(umbral_repoblacion) }} veces su
+                        referencia y se excluyó de la comparación, con
+                        el corte inmediatamente anterior saltado como
+                        ancla.
+                    </p>
+                </div>
+
+                <div class="na-k-step na-k-step--wide na-k-step--evidencia">
+                    <span class="na-k-step__label">Evidencia</span>
+                    <p class="na-k-step__text">
+                        {{ filas_republicaciones|length }} cortes superan el
+                        umbral:{% for fila in filas_republicaciones %}{% if not loop.first %};{% endif %}
+                        <strong>{{ fila.fecha }}</strong>, que publica
+                        <span class="na-stat">
+                            {{ "{:,}".format(fila.stock) }}
+                        </span>
+                        personas frente a una referencia de
+                        {{ "{:,}".format(fila.stock_referencia) }}
+                        ({{ "{:.1f}".format(fila.veces_mediana) }} veces
+                        la mediana de la serie){% endfor %}.
+                        La suma ingenua del año
+                        {{ fila_pico_anual.anio if fila_pico_anual else "—" }}
+                        arroja
+                        <strong>{{ "{:,}".format(fila_pico_anual.suma_ingenua)
+                        if fila_pico_anual else "—" }}</strong>
+                        frente a un crecimiento real de
+                        <strong>{{ "%+.2f"|format(fila_pico_anual.crecimiento_pct)
+                        if fila_pico_anual else "—" }}%</strong>.
+                        Gráfica
+                        <em>"Crecimiento neto por año"</em>, donde
+                        {{ fila_pico_anual.anio if fila_pico_anual else "el año del pico" }}
+                        aparece como una de las variaciones más
+                        moderadas del periodo.
+                    </p>
+                    <div class="na-k-chart">
+                        {{ grafica_k3 | safe }}
+                    </div>
+                </div>
+
+                <div class="na-k-step">
+                    <span class="na-k-step__label">Hallazgo</span>
+                    <p class="na-k-step__text">
+                        El crecimiento real de
+                        {{ fila_pico_anual.anio if fila_pico_anual else "—" }}
+                        fue de
+                        <strong>{{ "%+.2f"|format(fila_pico_anual.crecimiento_pct)
+                        if fila_pico_anual else "—" }}%</strong>,
+                        no del
+                        <strong>{{ "%+.2f"|format(fila_pico_anual.crecimiento_ingenuo_pct)
+                        if fila_pico_anual else "—" }}%</strong>
+                        que arroja la suma directa. El salto se explica
+                        por
+                        <strong>{{ "{:,}".format(pico_repoblacion.registros)
+                        if pico_repoblacion else "—" }}
+                        registros</strong> publicados de una sola vez.
+                    </p>
+                </div>
+
+                <div class="na-k-step">
+                    <span class="na-k-step__label">Interpretación</span>
+                    <p class="na-k-step__text">
+                        El pico es una corrección del archivo de
+                        publicación, no un fenómeno social. Cualquier
+                        informe que sume por periodo sin detectar estos
+                        cortes atribuirá al
+                        {{ fila_pico_anual.anio if fila_pico_anual else "año del pico" }}
+                        un aumento de la población detenida que nunca
+                        ocurrió, y el año siguiente parecería una
+                        caída que la lectura real corrige a la baja.
+                    </p>
+                </div>
+
+                <div class="na-k-step na-k-step--wide na-k-step--utility">
+                    <span class="na-k-step__label">Utilidad</span>
+                    <p class="na-k-step__text">
+                        Advierte a la entidad publicadora que la
+                        <em>suma por periodo es un método inválido</em>
+                        sobre cortes acumulados, y recomienda documentar
+                        el criterio en el diccionario de datos. También
+                        justifica pedir a la fuente una serie de
+                        <em>altas y bajas</em> en lugar de solo
+                        inventarios.
+                    </p>
+                </div>
+
+                <div class="na-k-step na-k-step--wide na-k-step--limit">
+                    <span class="na-k-step__label">Limitación</span>
+                    <p class="na-k-step__text">
+                        No se puede determinar <em>qué</em> se republicó.
+                        El conjunto no trae identificador de persona ni
+                        marca de revisión, así que no es posible distinguir
+                        entre una corrección de cifras y la incorporación
+                        de un subconjunto que antes no se reportaba.
+                    </p>
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- ==================================================
+             CONOCIMIENTO 3
+        ================================================== -->
+
+        <div class="na-knowledge" id="k3">
+
+            <div class="na-knowledge-head">
+                <span class="na-knowledge-num">K3</span>
+                <h3 class="na-knowledge-title">
+                LA POBLACIÓN SE FRAGMENTA: MÁS REGISTROS, MENOS PERSONAS
+                POR REGISTRO
+                </h3>
+            </div>
+
+            <div class="na-knowledge-flow">
+
+                <div class="na-k-step na-k-step--wide">
+                    <span class="na-k-step__label">Pregunta</span>
+                    <p class="na-k-step__text">
+                        ¿Cambia la composición de los registros aunque
+                        el número de personas se mantenga estable?
+                    </p>
+                </div>
+
+                <div class="na-k-step">
+                    <span class="na-k-step__label">Variables</span>
+                    <p class="na-k-step__text">
+                        <code>CANTIDAD</code> (numérica) frente al conteo
+                        de filas por <code>FECHA PUBLICACIÓN</code>.
+                    </p>
+                </div>
+
+                <div class="na-k-step">
+                    <span class="na-k-step__label">Procedimiento</span>
+                    <p class="na-k-step__text">
+                        Para cada corte se dividió el stock de personas
+                        entre el número de registros y se comparó ese
+                        promedio entre el año en que la fuente más
+                        agrupó personas por fila
+                        ({{ fragmentacion.anio_pico
+                        if fragmentacion else "—" }}) y el último
+                        año de la serie
+                        ({{ fragmentacion.anio_cierre
+                        if fragmentacion else "—" }}).
+                    </p>
+                </div>
+
+                <div class="na-k-step na-k-step--wide na-k-step--evidencia">
+                    <span class="na-k-step__label">Evidencia</span>
+                    <p class="na-k-step__text">
+                        El promedio cae de
+                        <strong>{{ fragmentacion.personas_por_registro_antes
+                        if fragmentacion else "—" }}</strong>
+                        en {{ fragmentacion.anio_pico
+                        if fragmentacion else "—" }} a
+                        <strong>{{ fragmentacion.personas_por_registro_despues
+                        if fragmentacion else "—" }}</strong>
+                        en {{ fragmentacion.anio_cierre
+                        if fragmentacion else "—" }}, mientras el
+                        número de registros por corte sube de
+                        <strong>{{ "{:,}".format(fragmentacion.registros_antes)
+                        if fragmentacion else "—" }}</strong> a
+                        <strong>{{ "{:,}".format(fragmentacion.registros_despues)
+                        if fragmentacion else "—" }}</strong> con un
+                        stock casi igual. Columna
+                        <em>"Personas por registro"</em> de la tabla de
+                        la sección 04 y segunda sección de la gráfica
+                        <em>"Variación por corte"</em>.
+                    </p>
+                    <div class="na-k-chart">
+                        {{ grafica_k2 | safe }}
+                    </div>
+                </div>
+
+                <div class="na-k-step">
+                    <span class="na-k-step__label">Hallazgo</span>
+                    <p class="na-k-step__text">
+                        El mismo stock se describe con un
+                        <strong>{{ fragmentacion.crecimiento_registros_pct
+                        if fragmentacion else "—" }} % más de
+                        registros</strong> en
+                        {{ fragmentacion.anio_cierre
+                        if fragmentacion else "—" }} que en
+                        {{ fragmentacion.anio_pico
+                        if fragmentacion else "—" }}. Cada registro
+                        representa
+                        <strong>{{ fragmentacion.personas_por_registro_despues
+                        if fragmentacion else "—" }}</strong>
+                        personas frente a
+                        {{ fragmentacion.personas_por_registro_antes
+                        if fragmentacion else "—" }}.
+                    </p>
+                </div>
+
+                <div class="na-k-step">
+                    <span class="na-k-step__label">Interpretación</span>
+                    <p class="na-k-step__text">
+                        La caída del promedio coincide con la reducción
+                        del <em>tamaño de grupo</em> de los registros: la
+                        fuente pasó de agregar varias personas por
+                        fila a reportar más casos individuales. Es un
+                        cambio en la <strong>forma de reportar</strong>,
+                        no en la magnitud de la población, y explica por
+                        qué el número de filas sube mientras el stock no.
+                    </p>
+                </div>
+
+                <div class="na-k-step na-k-step--wide na-k-step--utility">
+                    <span class="na-k-step__label">Utilidad</span>
+                    <p class="na-k-step__text">
+                        Permite usar el <em>número de filas</em> como
+                        indicador temprano de cambios en el criterio de
+                        agregación de la fuente. Si un consumidor cuenta
+                        filas creyendo que cuenta personas, obtendría una
+                        <strong>subestimación sistemática</strong> que
+                        empeora cada año.
+                    </p>
+                </div>
+
+                <div class="na-k-step na-k-step--wide na-k-step--limit">
+                    <span class="na-k-step__label">Limitación</span>
+                    <p class="na-k-step__text">
+                        El conjunto no documenta qué criterio agrupa a las
+                        personas dentro de un registro, así que no puede
+                        afirmarse que la fragmentación sea
+                        exclusivamente de casos más pequeños. También
+                        puede reflejar un cambio en la cobertura de la
+                        entidad publicadora.
+                    </p>
+                </div>
+
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <!-- ======================================================
+         06 · VARIACIÓN POR MES DEL CALENDARIO
+    ======================================================= -->
+
+    <section class="na-section">
+
+        <div class="na-section-header">
+            <span class="na-section-number">06</span>
+            <h2 class="na-section-title">
+                VARIACIÓN POR MES DEL CALENDARIO
+            </h2>
+        </div>
+
+        <div class="na-panel">
+
+            <p class="analysis-text">
+                La variación promedio según el mes del calendario se
+                calcula solo sobre cortes comparables, porque las
+                repoblaciones falsearían el promedio. Sirve para buscar
+                un comportamiento estacional.
+            </p>
+
+            <table class="na-table">
+
+                <thead>
+                    <tr>
+                        <th>Mes</th>
+                        <th>Variación promedio</th>
+                        <th>Cortes considerados</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% set meses = ['Enero', 'Febrero', 'Marzo', 'Abril',
+                                    'Mayo', 'Junio', 'Julio', 'Agosto',
+                                    'Septiembre', 'Octubre', 'Noviembre',
+                                    'Diciembre'] %}
+                    {% for fila in filas_mes %}
+                    <tr>
+                        <td>{{ meses[fila.mes - 1] }}</td>
+                        <td>
+                            {{ "{:+,.1f}".format(fila.variacion_media) }}
+                            personas
+                        </td>
+                        <td>{{ fila.cortes }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+
+            </table>
+
+            <p class="na-note">
+                <strong>Lectura.</strong>
+                De los {{ "{:,}".format(cortes_comparables) }} cortes
+                comparables, <strong>{{ sube }}</strong> muestran aumento
+                y <strong>{{ baja }}</strong> muestran disminución. El
+                mayor aumento del periodo es de
+                <strong>{{ "{:+,}".format(periodo_mayor_aumento.variacion)
+                if periodo_mayor_aumento else "—" }}</strong>
+                personas el {{ periodo_mayor_aumento.fecha
+                if periodo_mayor_aumento else "—" }} y la mayor caída de
+                <strong>{{ "{:+,}".format(periodo_mayor_disminucion.variacion)
+                if periodo_mayor_disminucion else "—" }}</strong> el
+                {{ periodo_mayor_disminucion.fecha
+                if periodo_mayor_disminucion else "—" }}. El mayor
+                de los dos extremos equivale a menos del
+                <strong>{{ "%.1f"|format(movimiento_maximo_pct) }}%</strong>
+                del stock actual, de modo que el comportamiento
+                estacional, si existe, es marginal: ningún mes
+                concentra por sí mismo la evolución de la serie.
+            </p>
+
+        </div>
+
+    </section>
+
+
+    <!-- ======================================================
+         07 · LIMITACIÓN Y DECISIÓN
+    ======================================================= -->
+
+    <section class="na-section">
+
+        <div class="na-section-header">
+            <span class="na-section-number">07</span>
+            <h2 class="na-section-title">
+                LIMITACIÓN Y DECISIÓN SUSTENTADA
+            </h2>
+        </div>
+
+        <div class="na-panel">
+
+            <div class="na-callout">
+                <strong>Limitación del análisis</strong>
+
+                <p style="margin-top: 8px; line-height: 1.65;">
+                    El conjunto de datos no trae la fecha de la
+                    detención, solo la del corte, por lo que no es posible
+                    medir cuántos eventos de detención ocurrieron por
+                    mes ni establecer estacionalidad real. El
+                    calendario de publicación es además irregular: 2018
+                    tiene un único corte, 2019 tiene tres, y hay meses
+                    sin publicación. Por eso la comparación se expresa
+                    por día, y el análisis estacional del mes del
+                    calendario debe leerse como descriptivo y no como
+                    evidencia de un ciclo.
+                </p>
+            </div>
+
+            <div class="na-panel"
+                 style="margin-top: 22px;
+                        border-color: rgba(0, 240, 255, 0.45);">
+
+                <strong>Posible decisión sustentada en los datos</strong>
+
+                <p style="margin-top: 8px; line-height: 1.65;">
+                    Dado que la población detenida en el exterior se
+                    mantiene estable
+                    ({{ "{:+.2f}".format(crecimiento_total_pct) }}% en
+                    {{ anios_periodo_texto }}) y que los únicos picos de
+                    la serie son
+                    {{ repoblaciones }} republicaciones masivas de la
+                    fuente, se recomienda dimensionar la asistencia
+                    consular como un <strong>mantenimiento estable</strong>
+                    y no como una respuesta a una emergencia, evitando
+                    sobreasignar recursos ante el pico de 2022.
+                    En paralelo, conviene solicitar a la entidad
+                    publicadora que documente el criterio de agregación
+                    por registro y que publique una serie de altas y
+                    bajas, en lugar de solo inventarios acumulados: sin
+                    esa distinción, ninguna serie temporal de este
+                    conjunto podrá distinguir una nueva detención de
+                    quien permanece detenido.
+                </p>
+
+            </div>
+
+        </div>
+
+    </section>
+
+
+</div>
+
+{% endblock %}

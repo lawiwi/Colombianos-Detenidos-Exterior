@@ -35,6 +35,15 @@ Dimensión Temporal
         el periodo disponible?
     </p>
 
+    <a href="{{ url_for('analisis_temporal') }}"
+       class="btn-analysis">
+
+        <span class="btn-analysis-icon"></span>
+
+        VER ANÁLISIS COMPLETO
+
+    </a>
+
 </div>
 
 
@@ -502,9 +511,12 @@ Dimensión Temporal
             <p style="line-height: 1.65;">
                 Estos cortes superan 1,5 veces el total del corte
                 comparable anterior. El mayor aumento normal de la
-                serie es de 4,4 %, así que un salto de esta magnitud
+                serie es de
+                <strong>{{ "%+.2f"|format(periodo_mayor_aumento.variacion_pct)
+                if periodo_mayor_aumento else "—" }}%</strong>,
+                así que un salto de esta magnitud
                 corresponde a una republicación del archivo y no a
-                nuevasisanat detenciones.
+                un aumento real de detenidos.
             </p>
 
         </div>
@@ -610,8 +622,8 @@ Dimensión Temporal
                 {{ fecha_stock_inicial }} a
                 {{ "{:,}".format(stock_actual) }} en
                 {{ fecha_stock_actual }},
-                un {{ "%+.2f"|format(crecimiento_total_pct) }}% en más de
-                siete años, con un ritmo de apenas
+                un {{ "%+.2f"|format(crecimiento_total_pct) }}% en
+                {{ anios_periodo_texto }}, con un ritmo de apenas
                 {{ "%.2f"|format(ritmo_diario) }} personas por día.
             </p>
 
@@ -625,13 +637,26 @@ Dimensión Temporal
             </span>
 
             <p>
+                {% set marcadas = filas_republicaciones[:2] %}
+                {% set plural = marcadas|length != 1 %}
+
                 Los picos de la serie son
                 <strong>artefactos de republicación</strong>, no un
-                aumento real de detenidos. Dos cortes, el 24 de enero
-                de 2022 y el 4 de enero de 2023, superan 1,5 veces el
-                total del corte anterior. Leídos como crecimiento,
-                sugerirían unaumento detenida en 2022 que nunca
-                ocurrió.
+                aumento real de detenidos.
+                {% if marcadas %}
+                    {{ marcadas|length }}
+                    corte{{ 's' if plural }}
+                    ({{ marcadas|map(attribute='fecha')|join(' y ') }})
+                    supera{{ 'n' if plural }} 1,5 veces el total del
+                    corte comparable anterior. Leído{{ 's' if plural }}
+                    como crecimiento, sugeriría{{ 'n' if plural }} un
+                    aumento de la población detenida en
+                    {{ marcadas[0].fecha[:4] }} que nunca ocurrió.
+                {% else %}
+                    Con los filtros seleccionados no se detecta
+                    ninguna republicación masiva: ningún corte
+                    supera 1,5 veces el total del comparable anterior.
+                {% endif %}
             </p>
 
         </div>
@@ -645,7 +670,10 @@ Dimensión Temporal
 
             <p>
                 Cada registro representa menos personas que antes:
-                el promedio cae de 5,03 en 2022 a 4,51 en 2025. La
+                el promedio del último corte de la serie es de
+                {{ filas_anuales[-1].personas_por_registro }} personas
+                frente a {{ filas_anuales[0].personas_por_registro }} en
+                el primero. La
                 población detenida no solo se mantiene, sino que se
                 <strong>fragmenta</strong> en un número mayor de
                 registros, lo que apunta a un cambio en la forma de
