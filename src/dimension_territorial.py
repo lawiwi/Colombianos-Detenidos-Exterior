@@ -553,26 +553,42 @@ def grafica_paises(paises, render):
     return render.html(fig)
 
 
-def grafica_continentes(continentes, render):
-    """Dona por continente."""
+def grafica_continentes(continentes, seleccionado, render):
+    """
+    Dona con TODOS los continentes sobre el total global (del delito
+    filtrado, si lo hay). El continente seleccionado se resalta y se
+    separa del círculo; los demás quedan atenuados.
+    """
     if continentes.empty:
         return _sin_datos()
 
-    colores = [PALETA[i % len(PALETA)] for i in range(len(continentes))]
+    colores, separacion = [], []
+    for i, cont in enumerate(continentes['CONTINENTE']):
+        color = PALETA[i % len(PALETA)]
+        if seleccionado and cont != seleccionado:
+            # mismo color con transparencia
+            r, g, b = (int(color[k:k + 2], 16) for k in (1, 3, 5))
+            color = f'rgba({r},{g},{b},0.25)'
+        colores.append(color)
+        separacion.append(0.08 if cont == seleccionado else 0)
+
     fig = go.Figure(go.Pie(
         labels=continentes['CONTINENTE'],
         values=continentes['CANTIDAD'],
         hole=0.58,
         sort=False,
         direction='clockwise',
+        pull=separacion,
         textinfo='percent',
-        textfont=dict(color='#050510', size=12),
+        textposition='outside',
+        textfont=dict(color=TEXT, size=12),
         marker=dict(colors=colores, line=dict(color='#050510', width=2)),
         hovertemplate=('<b>%{label}</b><br>Cantidad: %{value:,.0f}'
-                       '<br>Participación: %{percent}<extra></extra>'),
+                       '<br>Participación global: %{percent}<extra></extra>'),
     ))
-    _estilo(fig, alto=400,
-            legend=dict(orientation='h', y=-0.08, x=0.5, xanchor='center',
+    _estilo(fig, alto=420,
+            margin=dict(l=20, r=20, t=30, b=20),
+            legend=dict(orientation='h', y=-0.1, x=0.5, xanchor='center',
                         bgcolor='rgba(0,0,0,0)', font=dict(color=TEXT_DIM)))
     return render.html(fig)
 
@@ -607,7 +623,11 @@ def grafica_consulados(consulados, render):
 
 
 def grafica_perfil_delictivo(perfil, categorias, render):
-    """Barras 100 % apiladas: composición del delito en los principales países."""
+    """
+    Barras apiladas por ciudad (consulado). La longitud total de cada
+    barra es el % que esa ciudad representa sobre el TOTAL del territorio
+    filtrado (continente + delito); los colores dividen ese % por delito.
+    """
     if perfil.empty:
         return _sin_datos()
 
@@ -617,28 +637,45 @@ def grafica_perfil_delictivo(perfil, categorias, render):
         if cat == 'Otros delitos':
             colores[cat] = COLOR_OTROS
         elif cat == LABEL_DELITO_SIN_DATO:
-            colores[cat] = COLOR_SIN_DATO
+            colores[cat] = '#3d4b5c'
         else:
             colores[cat] = PALETA[i % len(PALETA)]
             i += 1
 
-    paises_orden = list(perfil.index)[::-1]
+    ciudades = list(perfil.index)[::-1]          # mayor arriba
+    totales = perfil.sum(axis=1)
     fig = go.Figure()
     for cat in categorias:
-        valores = perfil.loc[paises_orden, cat] if cat in perfil.columns else [0] * len(paises_orden)
+        if cat not in perfil.columns or perfil[cat].sum() == 0:
+            continue
         fig.add_trace(go.Bar(
             name=cat,
-            x=valores,
-            y=paises_orden,
+            x=perfil.loc[ciudades, cat],
+            y=ciudades,
             orientation='h',
             marker=dict(color=colores[cat], line=dict(width=0.5, color='#050510')),
             hovertemplate=('<b>%{y}</b><br>' + cat +
-                           ': %{x:.1f}%<extra></extra>'),
+                           ': %{x:.2f}% del total del territorio<extra></extra>'),
         ))
-    _estilo(fig, alto=480, barmode='stack',
+
+    # etiqueta con el total de cada ciudad al final de la barra
+    fig.add_trace(go.Scatter(
+        x=totales.loc[ciudades],
+        y=ciudades,
+        mode='text',
+        text=[f"  {v:.1f}%" for v in totales.loc[ciudades]],
+        textposition='middle right',
+        textfont=dict(color=TEXT, size=11),
+        hoverinfo='skip',
+        showlegend=False,
+    ))
+
+    _estilo(fig, alto=500, barmode='stack',
             legend=dict(orientation='h', y=-0.12, x=0.5, xanchor='center',
                         bgcolor='rgba(0,0,0,0)', font=dict(color=TEXT_DIM, size=11)))
-    fig.update_xaxes(range=[0, 100], ticksuffix='%')
+    fig.update_xaxes(range=[0, float(totales.max()) * 1.18], ticksuffix='%',
+                     title_text='% del total del territorio filtrado',
+                     title_font=dict(color=TEXT_DIM, size=11))
     return render.html(fig)
 
 
@@ -678,12 +715,23 @@ def construir_contexto_territorial(df, continente='', delito=''):
                            .reset_index(drop=True))
     paises['PCT'] = paises['CANTIDAD'] / poblacion_identificada * 100 if poblacion_identificada else 0
 
-    # ---------- agregados por continente ----------
-    continentes = (identificados.groupby('CONTINENTE', as_index=False)['CANTIDAD'].sum()
-                                .query('CANTIDAD > 0')
-                                .sort_values('CANTIDAD', ascending=False)
-                                .reset_index(drop=True))
-    continentes['PCT'] = continentes['CANTIDAD'] / poblacion_identificada * 100 if poblacion_identificada else 0
+    # ---------- agregados por continente (TOTAL GLOBAL) ----------
+    # La dona no se filtra por continente: compara cada continente contra
+    # el total global del delito seleccionado (o de todos los delitos).
+    global_delito = base if not delito else base[base['DELITO'] == delito]
+    global_total = float(global_delito['CANTIDAD'].sum())
+    global_ident = global_delito[global_delito['TIPO_TERRITORIO'] == 'País']
+    global_ident_total = float(global_ident['CANTIDAD'].sum())
+
+    continentes = (global_ident.groupby('CONTINENTE', as_index=False)['CANTIDAD'].sum()
+                               .query('CANTIDAD > 0'))
+    orden = {c: i for i, c in enumerate(ORDEN_CONTINENTES)}
+    continentes = (continentes.assign(_o=continentes['CONTINENTE'].map(orden).fillna(99))
+                              .sort_values(['_o', 'CANTIDAD'], ascending=[True, False])
+                              .drop(columns='_o')
+                              .reset_index(drop=True))
+    continentes['PCT'] = continentes['CANTIDAD'] / global_ident_total * 100 if global_ident_total else 0
+    continentes['PCT_GLOBAL'] = continentes['CANTIDAD'] / global_total * 100 if global_total else 0
 
     # ---------- agregados por consulado ----------
     consulados = (t.groupby('CONSULADO')
@@ -696,20 +744,36 @@ def construir_contexto_territorial(df, continente='', delito=''):
     consulados = consulados.sort_values('CANTIDAD', ascending=False).reset_index(drop=True)
     consulados['PCT'] = consulados['CANTIDAD'] / poblacion_total * 100 if poblacion_total else 0
 
-    # ---------- perfil delictivo de los principales países ----------
-    top_paises = paises.head(8)['PAIS'].tolist()
-    sub = identificados[identificados['PAIS'].isin(top_paises)]
-    delitos_top = (sub[sub['DELITO'] != LABEL_DELITO_SIN_DATO]
-                   .groupby('DELITO')['CANTIDAD'].sum()
-                   .drop(labels=['Otros'], errors='ignore')
-                   .sort_values(ascending=False).head(5).index.tolist())
-    sub = sub.assign(CAT=sub['DELITO'].where(
-        sub['DELITO'].isin(delitos_top + [LABEL_DELITO_SIN_DATO]), 'Otros delitos'))
-    perfil = sub.pivot_table(index='PAIS', columns='CAT', values='CANTIDAD',
+    # ---------- ciudades del territorio filtrado, divididas por delito ----------
+    # Cada barra = % que la ciudad (consulado) representa sobre el total
+    # del territorio filtrado; los segmentos dividen ese % por delito.
+    ciudades = t[(t['CONSULADO'] != LABEL_DESCONOCIDO)
+                 & ~t['CONSULADO'].str.contains('Asistencia', case=False)]
+    top_ciudades = consulados[consulados['CONSULADO'].isin(ciudades['CONSULADO'])].head(10)
+    etiqueta = {r.CONSULADO: (f"{r.CONSULADO} · {r.PAIS}" if r.PAIS != LABEL_DESCONOCIDO
+                              else r.CONSULADO)
+                for r in top_ciudades.itertuples()}
+    sub = ciudades[ciudades['CONSULADO'].isin(etiqueta)]
+
+    if delito:
+        delitos_top = [delito]
+    else:
+        delitos_top = (sub[sub['DELITO'] != LABEL_DELITO_SIN_DATO]
+                       .groupby('DELITO')['CANTIDAD'].sum()
+                       .drop(labels=['Otros'], errors='ignore')
+                       .sort_values(ascending=False).head(5).index.tolist())
+
+    sub = sub.assign(
+        CIUDAD=sub['CONSULADO'].map(etiqueta),
+        CAT=sub['DELITO'].where(
+            sub['DELITO'].isin(delitos_top + [LABEL_DELITO_SIN_DATO]), 'Otros delitos'),
+    )
+    perfil = sub.pivot_table(index='CIUDAD', columns='CAT', values='CANTIDAD',
                              aggfunc='sum', fill_value=0)
-    if not perfil.empty:
-        perfil = perfil.loc[[p for p in top_paises if p in perfil.index]]
-        perfil = perfil.div(perfil.sum(axis=1).replace(0, 1), axis=0) * 100
+    if not perfil.empty and poblacion_total:
+        perfil = perfil.loc[[etiqueta[c] for c in top_ciudades['CONSULADO']
+                             if etiqueta[c] in perfil.index]]
+        perfil = perfil / poblacion_total * 100
     categorias = delitos_top + ['Otros delitos', LABEL_DELITO_SIN_DATO]
 
     # ---------- KPIs ----------
@@ -725,14 +789,17 @@ def construir_contexto_territorial(df, continente='', delito=''):
     contexto_graficas = dict(
         grafica_mapa=html_mapa,
         grafica_paises=grafica_paises(paises, render),
-        grafica_continentes=grafica_continentes(continentes, render),
+        grafica_continentes=grafica_continentes(continentes, continente, render),
         grafica_consulados=grafica_consulados(consulados, render),
         grafica_perfil=grafica_perfil_delictivo(perfil, categorias, render),
     )
 
     # ---------- interpretaciones dinámicas ----------
     interp = _interpretaciones(paises, continentes, consulados, perfil,
-                               pct_sin_pais, poblacion_total, modo_mapa)
+                               pct_sin_pais, poblacion_total, modo_mapa,
+                               continente=continente, delito=delito,
+                               global_total=global_total,
+                               global_ident_total=global_ident_total)
 
     return dict(
         # filtros
@@ -757,7 +824,8 @@ def construir_contexto_territorial(df, continente='', delito=''):
 
 
 def _interpretaciones(paises, continentes, consulados, perfil, pct_sin_pais, total,
-                      modo_mapa='consulado'):
+                      modo_mapa='consulado', continente='', delito='',
+                      global_total=0.0, global_ident_total=0.0):
     sin = 'No hay suficientes datos para interpretar esta gráfica con los filtros actuales.'
     out = {}
 
@@ -802,17 +870,34 @@ def _interpretaciones(paises, continentes, consulados, perfil, pct_sin_pais, tot
     else:
         out['interp_paises'] = sin
 
-    # ----- Continentes -----
+    # ----- Continentes (total global) -----
     if not continentes.empty:
-        c1 = continentes.iloc[0]
-        resto = ', '.join(f"{r.CONTINENTE} {r.PCT:.1f}%" for r in continentes.iloc[1:].itertuples())
-        out['interp_continentes'] = (
-            f"<em>{c1.CONTINENTE}</em> concentra el {c1.PCT:.1f}% de los detenidos con "
-            f"país conocido"
-            + (f"; le siguen {resto}." if resto else ".")
-            + " La detención de colombianos es un fenómeno principalmente regional, "
-              "asociado a la cercanía geográfica y a las rutas migratorias."
-        )
+        que = f"los detenidos por <em>{delito.lower()}</em>" if delito else "los detenidos"
+        pct_sin = _pct(global_total - global_ident_total, global_total)
+        ordenados = continentes.sort_values('CANTIDAD', ascending=False)
+        if continente and continente in set(continentes['CONTINENTE']):
+            fila = continentes[continentes['CONTINENTE'] == continente].iloc[0]
+            puesto = list(ordenados['CONTINENTE']).index(continente) + 1
+            otros = ', '.join(f"{r.CONTINENTE} {r.PCT:.1f}%" for r in ordenados.itertuples()
+                              if r.CONTINENTE != continente)
+            texto = (
+                f"Del total global de {que} con país identificado "
+                f"({_formato(global_ident_total)} personas), <em>{continente}</em> aporta "
+                f"<strong>{_formato(fila.CANTIDAD)}</strong>, es decir el "
+                f"<strong>{fila.PCT:.1f}%</strong>, y ocupa el puesto {puesto} de "
+                f"{len(ordenados)}. El resto se reparte así: {otros}."
+            )
+        else:
+            partes = ', '.join(f"<em>{r.CONTINENTE}</em> {r.PCT:.1f}%" for r in ordenados.itertuples())
+            texto = (
+                f"Sobre el total global de {que} con país identificado "
+                f"({_formato(global_ident_total)} personas), la participación por "
+                f"continente es: {partes}. El fenómeno es principalmente regional, "
+                f"asociado a la cercanía geográfica y a las rutas migratorias."
+            )
+        texto += (f" Además, el {pct_sin:.1f}% del total global no tiene país "
+                  f"identificado, por lo que no se puede asignar a ningún continente.")
+        out['interp_continentes'] = texto
     else:
         out['interp_continentes'] = sin
 
@@ -838,31 +923,42 @@ def _interpretaciones(paises, continentes, consulados, perfil, pct_sin_pais, tot
     else:
         out['interp_consulados'] = sin
 
-    # ----- Perfil delictivo -----
+    # ----- Ciudades del territorio, divididas por delito -----
     if not perfil.empty:
-        notas = []
-        sin_dato_col = LABEL_DELITO_SIN_DATO
-        delitos_cols = [c for c in perfil.columns if c not in ('Otros delitos', sin_dato_col)]
-        if delitos_cols:
-            principal = perfil[delitos_cols].idxmax(axis=1)
-            for pais, deli in principal.items():
-                valor = perfil.loc[pais, deli]
-                if valor >= 50:
-                    notas.append(f"{pais} ({deli.lower()} {valor:.0f}%)")
-        opacos = []
-        if sin_dato_col in perfil.columns:
-            opacos = [f"{p} ({v:.0f}%)" for p, v in perfil[sin_dato_col].items() if v >= 25]
-
-        partes = ["Cada barra muestra la composición del delito dentro de un mismo país."]
-        if notas:
-            partes.append("Países con un delito claramente dominante: "
-                          f"<em>{', '.join(notas)}</em>.")
-        if opacos:
-            partes.append("Territorios con alta proporción de delito sin dato o "
-                          f"confidencial: <em>{', '.join(opacos)}</em>.")
-        partes.append("Las diferencias muestran que cada territorio tiene un perfil "
-                      "penal propio y no una réplica del total nacional.")
-        out['interp_perfil'] = ' '.join(partes)
+        totales = perfil.sum(axis=1)
+        territorio = f"en <em>{continente}</em>" if continente else "a nivel global"
+        que = f" por {delito.lower()}" if delito else ""
+        top = totales.index[0]
+        n = len(totales)
+        texto = (
+            f"Cada barra muestra qué porcentaje del total de detenidos{que} "
+            f"{territorio} corresponde a esa ciudad. <em>{top}</em> concentra el "
+            f"<strong>{totales.iloc[0]:.1f}%</strong>"
+        )
+        if n > 3:
+            texto += (f", las tres primeras ciudades suman el "
+                      f"<strong>{totales.head(3).sum():.1f}%</strong> y las {n} ciudades "
+                      f"del gráfico reúnen el {totales.sum():.1f}% del territorio.")
+        elif n > 1:
+            texto += (f"; en este territorio solo hay {n} ciudades con registros, "
+                      f"que suman el {totales.sum():.1f}%.")
+        else:
+            texto += "; es la única ciudad con registros en este territorio."
+        if not delito:
+            delitos_cols = [c for c in perfil.columns
+                            if c not in ('Otros delitos', LABEL_DELITO_SIN_DATO)]
+            if delitos_cols:
+                notas = []
+                for ciudad in list(perfil.index)[:5]:
+                    fila = perfil.loc[ciudad, delitos_cols]
+                    if totales[ciudad] > 0 and fila.max() > 0:
+                        notas.append(f"{ciudad.split(' · ')[0]} "
+                                     f"({fila.idxmax().lower()} "
+                                     f"{fila.max() / totales[ciudad] * 100:.0f}% de sus casos)")
+                if notas:
+                    texto += (" Los colores muestran que el perfil cambia entre ciudades: "
+                              f"<em>{', '.join(notas)}</em>.")
+        out['interp_perfil'] = texto
     else:
         out['interp_perfil'] = sin
 
