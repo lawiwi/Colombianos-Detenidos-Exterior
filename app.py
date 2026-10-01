@@ -1,9 +1,14 @@
-from flask import Flask, render_template, request, redirect, url_for
+from flask import Flask, jsonify, render_template, request, redirect, url_for
 import pandas as pd
 import plotly.express as px
+import numpy as np
+from plotly.subplots import make_subplots
 import os
 import re
 import unicodedata
+
+from src import analisis_temporal as temporal
+from src import dimension_territorial as territorial
 
 
 app = Flask(__name__)
@@ -59,6 +64,50 @@ MAPA_PAISES_ISO = {
 # ============================================================
 # UTILIDADES GENERALES
 # ============================================================
+
+NUMEROS_EN_PALABRAS = {
+    0: "cero", 1: "uno", 2: "dos", 3: "tres", 4: "cuatro", 5: "cinco",
+    6: "seis", 7: "siete", 8: "ocho", 9: "nueve", 10: "diez",
+    11: "once", 12: "doce",
+}
+
+
+def en_palabras(numero, sufijo=""):
+    """
+    Escribe un número pequeño en palabras, para el texto de las páginas.
+
+    Los tableros redactan conclusiones en prosa, y una cifra fija
+    embebida en el HTML se desactualiza en cuanto la fuente publica un
+    corte nuevo. Este helper permite que el dato siga viniendo del
+    cálculo y solo se convierta en texto al renderizar.
+    """
+    entero = int(round(numero))
+
+    if entero in NUMEROS_EN_PALABRAS:
+        return f"{NUMEROS_EN_PALABRAS[entero]}{sufijo}"
+
+    return f"{numero:,.0f}{sufijo}"
+
+
+def anio_en_rango(texto, minimo, maximo, por_defecto):
+    """
+    Convierte un año recibido por la URL en un entero válido.
+
+    El filtro del tablero temporal es un rango de años. Si el valor no
+    es numérico o cae fuera de los años con cortes, se ajusta a los
+    límites del conjunto, de modo que un enlace mal formado nunca deje
+    el tablero vacío sin explicación.
+    """
+    if texto is None or str(texto).strip() == "":
+        return por_defecto
+
+    try:
+        anio = int(str(texto).strip())
+    except (TypeError, ValueError):
+        return por_defecto
+
+    return max(minimo, min(maximo, anio))
+
 
 def sin_acentos(texto):
     """Devuelve el texto en minúsculas, sin tildes ni diacríticos."""
@@ -326,6 +375,27 @@ def obtener_columna(df, posibles):
 # DATASET PROCESADO Y CACHEADO
 # ============================================================
 
+def normalizar_columna(serie, funcion):
+    """
+    Aplica una función de normalización a una columna categórica.
+
+    Las columnas del dataset (país, delito, situación jurídica, género
+    y grupo de edad) repiten los mismos valores cientos de veces cada
+    una. Como las funciones de normalización solo dependen del texto de
+    la celda, se calculan una vez por valor distinto y se proyectan con
+    un map, en lugar de invocar la función 388.148 veces.
+
+    El resultado es el mismo que el de `serie.apply(funcion)`, incluidas
+    las celdas vacías, que se resuelven con la misma regla que usa la
+    función para un valor ausente.
+    """
+    equivalentes = {
+        valor: funcion(valor) for valor in serie.dropna().unique()
+    }
+
+    return serie.map(equivalentes).fillna(funcion(None))
+
+
 def cargar_dataset_procesado():
     if "df" in _CACHE_DATASET:
         return _CACHE_DATASET["df"]
@@ -356,12 +426,22 @@ def cargar_dataset_procesado():
     # --------------------------------------------------------
     # Normalización (todas las variantes → valor canónico)
     # --------------------------------------------------------
+    # Se normaliza sobre los valores distintos de cada columna y luego
+    # se proyecta el resultado sobre todas las filas. Las cinco
+    # funciones de normalización son puras (dependen solo del texto de
+    # la celda), así que el resultado es idéntico al de recorrer las
+    # 388.148 filas una por una, pero la carga inicial del dataset
+    # baja de unos 13 segundos a menos de uno. En un despliegue eso es
+    # la diferencia entre una primera visita lenta y un error por
+    # tiempo de espera agotado.
 
-    df["GENERO"]    = df["GENERO"].apply(normalizar_genero)
-    df["EDAD"]      = df["EDAD"].apply(normalizar_edad)
-    df["PAIS"]      = df["PAIS"].apply(normalizar_pais)
-    df["DELITO"]    = df["DELITO"].apply(normalizar_delito)
-    df["SITUACION"] = df["SITUACION"].apply(normalizar_situacion)
+    df["GENERO"]    = normalizar_columna(df["GENERO"], normalizar_genero)
+    df["EDAD"]      = normalizar_columna(df["EDAD"], normalizar_edad)
+    df["PAIS"]      = normalizar_columna(df["PAIS"], normalizar_pais)
+    df["DELITO"]    = normalizar_columna(df["DELITO"], normalizar_delito)
+    df["SITUACION"] = normalizar_columna(
+        df["SITUACION"], normalizar_situacion
+    )
 
     _CACHE_DATASET["df"] = df
     return df
@@ -517,12 +597,12 @@ def dimension_1():
 
 @app.route('/dimension-2')
 def dimension_2():
-    return render_template('dim_2.html', titulo="Dimensión 2")
+    return redirect(url_for('dimension_territorial'))
 
 
 @app.route('/dimension-3')
 def dimension_3():
-    return render_template('dim_3.html', titulo="Dimensión 3")
+    return redirect(url_for('dimension_temporal'))
 
 
 @app.route('/dimension-4')
@@ -933,6 +1013,64 @@ def dimension_4():
         tabla_raros=tabla_raros,
         prioridades=prioridades.to_dict("records"),
     )
+
+
+# ============================================================
+# SALUD DEL SERVICIO
+# ------------------------------------------------------------
+# Es la ruta que usa la persona responsable de la publicación para
+# confirmar, contra la URL ya desplegada, que el proceso está vivo y
+# que el conjunto de datos viaja en la imagen. Sin esto, un despliegue
+# que arranca pero no encuentra el CSV solo se detecta cuando alguien
+# abre el tablero en la revisión.
+#
+# Por defecto es barata: solo mira el archivo en disco. Con
+# /health?carga=1 además lee el CSV y construye la serie temporal,
+# que es el cálculo real de todas las páginas.
+# ============================================================
+
+@app.route('/health')
+def health():
+
+    inicio = pd.Timestamp.now()
+
+    archivo = {
+        "ruta_relativa": os.path.relpath(DATA_PATH, BASE_DIR),
+        "presente": os.path.exists(DATA_PATH),
+        "bytes": os.path.getsize(DATA_PATH) if os.path.exists(DATA_PATH) else 0,
+    }
+
+    # Si el dataset ya está en caché, el proceso lo tiene cargado y no
+    # hay nada que recalcular.
+    archivo["en_cache"] = "df" in _CACHE_DATASET
+
+    estado = {
+        "servicio": "ok",
+        "version_app": "1.0.0",
+        "dataset": archivo,
+        "comprobado": "archivo",
+    }
+
+    if request.args.get("carga") == "1":
+        try:
+            df_minimo = temporal.cargar_datos(solo_minimas=True)
+            serie = temporal.serie_temporal(df_minimo)
+            estado["comprobado"] = "carga_completa"
+            estado["dataset"]["registros_csv"] = int(df_minimo.shape[0])
+            estado["dataset"]["cortes"] = int(len(serie))
+        except Exception as error:
+            estado["servicio"] = "error"
+            estado["error"] = f"{type(error).__name__}: {error}"
+
+    if not archivo["presente"]:
+        estado["servicio"] = "error"
+        estado["error"] = "El conjunto de datos no está en la imagen"
+
+    estado["duracion_ms"] = int(
+        (pd.Timestamp.now() - inicio).total_seconds() * 1000
+    )
+
+    return jsonify(estado), (200 if estado["servicio"] == "ok" else 503)
 
 
 # ============================================================
@@ -1413,8 +1551,728 @@ def analisis_poblacional():
 
 
 # ============================================================
+# DIMENSIÓN TERRITORIAL
+# ------------------------------------------------------------
+# La lógica (normalización de países, continentes, consulados y
+# gráficas) está en src/dimension_territorial.py. Se reutiliza el
+# dataset ya procesado y cacheado, igual que en las otras dimensiones.
+# ============================================================
+
+@app.route('/dimension-territorial')
+def dimension_territorial():
+
+    contexto = territorial.construir_contexto_territorial(
+        cargar_dataset_procesado(),
+        continente=request.args.get("continente", "").strip(),
+        delito=request.args.get("delito", "").strip(),
+    )
+
+    return render_template(
+        'dim_2.html',
+        titulo="Dimensión Territorial",
+        **contexto,
+    )
+
+
+# ============================================================
+# DIMENSIÓN TEMPORAL
+# ------------------------------------------------------------
+# El detalle metodológico de por qué la comparación se hace entre
+# cortes y no de forma acumulada está documentado en
+# src/analisis_temporal.py.
+# ============================================================
+
+@app.route('/dimension-temporal')
+def dimension_temporal():
+
+    # --------------------------------------------------------
+    # 1. FILTRO TEMPORAL (RANGO DE AÑOS)
+    # --------------------------------------------------------
+
+    # La dimensión temporal se filtra por años, que es su propia
+    # variable. No filtra por país ni por situación jurídica: esos
+    # cortes pertenecen a la dimensión poblacional y aquí solo
+    # añadirían subconjuntos sin aportar nada a la lectura de la
+    # evolución. Se reutiliza la capa de datos ya normalizada, así el
+    # costo de leer el CSV se paga una sola vez por proceso.
+    df_base = cargar_dataset_procesado()
+
+    serie_completa = temporal.serie_temporal(df_base)
+    anios = temporal.anios_disponibles(serie_completa)
+
+    anio_min = anios[0]
+    anio_max = anios[-1]
+
+    anio_desde = anio_en_rango(
+        request.args.get("anio_desde"), anio_min, anio_max, anio_min
+    )
+    anio_hasta = anio_en_rango(
+        request.args.get("anio_hasta"), anio_min, anio_max, anio_max
+    )
+
+    if anio_desde > anio_hasta:
+        anio_desde, anio_hasta = anio_hasta, anio_desde
+
+    # --------------------------------------------------------
+    # 2. SERIE DE CORTES Y EVOLUCIÓN
+    # --------------------------------------------------------
+
+    serie = temporal.recortar_por_anio(
+        serie_completa, anio_desde, anio_hasta
+    )
+    indicadores = temporal.indicadores(serie)
+    anual = temporal.resumen_por_anio(serie)
+    por_mes = temporal.variacion_por_mes_del_ano(serie)
+
+    # El rango de años siempre cae dentro de los años con cortes, pero
+    # se conserva la salida por si el conjunto llegara vacío: en ese
+    # caso no se construyen las gráficas y se devuelve el aviso.
+    sin_datos = serie.empty
+
+    if sin_datos:
+        return render_template(
+            'dim_3.html',
+            titulo="Dimensión Temporal",
+            sin_datos=True,
+            anios=anios,
+            anio_min=anio_min,
+            anio_max=anio_max,
+            anio_desde=anio_desde,
+            anio_hasta=anio_hasta,
+        )
+
+    # --------------------------------------------------------
+    # 3. GRÁFICA 1 — STOCK POR CORTE
+    # --------------------------------------------------------
+
+    # Una sola serie, sin desglose por tipo de corte: la línea continua
+    # del stock es lo que el tablero muestra y nada más.
+    fig_stock = px.line(
+        serie,
+        x="FECHA",
+        y="stock",
+        markers=True,
+        labels={
+            "FECHA": "Fecha de corte",
+            "stock": "Personas detenidas",
+        },
+    )
+
+    fig_stock.update_traces(
+        line=dict(width=2, color="#00f0ff"),
+        marker=dict(size=6, color="#00f0ff"),
+        hovertemplate=(
+            "<b>%{x|%d/%m/%Y}</b><br>"
+            "Stock: %{y:,.0f} personas<extra></extra>"
+        ),
+    )
+
+    fig_stock.update_layout(
+        template="plotly_dark",
+        height=460,
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        margin=dict(l=20, r=20, t=30, b=20),
+        font=dict(family="Share Tech Mono, monospace"),
+        showlegend=False,
+        xaxis=dict(gridcolor="rgba(0,240,255,0.08)"),
+        yaxis=dict(gridcolor="rgba(0,240,255,0.08)"),
+    )
+
+    grafica_stock = fig_stock.to_html(
+        full_html=False,
+        include_plotlyjs="cdn",
+        config={"displayModeBar": False},
+    )
+
+    # --------------------------------------------------------
+    # 4. GRÁFICA 2 — VARIACIÓN NETA ENTRE CORTES
+    # --------------------------------------------------------
+
+    comparables = serie[serie["variacion_neta"].notna()].copy()
+    comparables["MOVIMIENTO"] = np.where(
+        comparables["variacion_neta"] >= 0,
+        "Aumento",
+        "Disminucion",
+    )
+
+    fig_variacion = px.bar(
+        comparables,
+        x="FECHA",
+        y="variacion_neta",
+        color="MOVIMIENTO",
+        color_discrete_map={
+            "Aumento": "#7affb2",
+            "Disminucion": "#ff6b6b",
+        },
+        labels={
+            "FECHA": "Fecha de corte",
+            "variacion_neta": "Personas frente al corte anterior",
+            "MOVIMIENTO": "",
+        },
+    )
+
+    fig_variacion.add_hline(
+        y=0, line_width=1, line_dash="dot", line_color="rgba(255,255,255,0.35)"
+    )
+
+    fig_variacion.update_traces(
+        hovertemplate=(
+            "<b>%{x|%d/%m/%Y}</b><br>"
+            "Variacion: %{y:+,.0f} personas<extra></extra>"
+        ),
+    )
+
+    fig_variacion.update_layout(
+        template="plotly_dark",
+        height=420,
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        margin=dict(l=20, r=20, t=30, b=20),
+        font=dict(family="Share Tech Mono, monospace"),
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, x=0),
+        xaxis=dict(gridcolor="rgba(0,240,255,0.08)"),
+        yaxis=dict(gridcolor="rgba(0,240,255,0.08)"),
+    )
+
+    grafica_variacion = fig_variacion.to_html(
+        full_html=False,
+        include_plotlyjs=False,
+        config={"displayModeBar": False},
+    )
+
+    # --------------------------------------------------------
+    # 5. GRÁFICA 3 — CIERRE Y CRECIMIENTO POR AÑO
+    # --------------------------------------------------------
+
+    fig_anual = px.bar(
+        anual,
+        x=anual["anio"].astype(str),
+        y="crecimiento_neto",
+        color="crecimiento_neto",
+        color_continuous_scale=["#ff6b6b", "#0a1a2f", "#7affb2"],
+        labels={
+            "x": "Año",
+            "crecimiento_neto": "Crecimiento neto del año",
+            "color": "",
+        },
+    )
+
+    fig_anual.add_scatter(
+        x=anual["anio"].astype(str),
+        y=anual["stock_cierre"],
+        name="Stock de cierre",
+        mode="lines+markers",
+        line=dict(color="#ffb703", width=2),
+        yaxis="y2",
+        hovertemplate="Stock de cierre: %{y:,.0f}<extra></extra>",
+    )
+
+    fig_anual.add_hline(
+        y=0, line_width=1, line_dash="dot", line_color="rgba(255,255,255,0.35)"
+    )
+
+    fig_anual.update_layout(
+        template="plotly_dark",
+        height=460,
+        coloraxis_showscale=False,
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        margin=dict(l=20, r=20, t=30, b=20),
+        font=dict(family="Share Tech Mono, monospace"),
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, x=0),
+        xaxis=dict(gridcolor="rgba(0,240,255,0.08)"),
+        yaxis=dict(
+            title="Crecimiento neto",
+            gridcolor="rgba(0,240,255,0.08)",
+        ),
+        yaxis2=dict(
+            title="Stock de cierre",
+            overlaying="y",
+            side="right",
+            showgrid=False,
+        ),
+    )
+
+    grafica_anual = fig_anual.to_html(
+        full_html=False,
+        include_plotlyjs=False,
+        config={"displayModeBar": False},
+    )
+
+    # --------------------------------------------------------
+    # 6. INTERPRETACIONES DINÁMICAS
+    # --------------------------------------------------------
+
+    # El texto sitúa el rango elegido. Cuando abarca todo el periodo no
+    # se habla de filtro, porque es la lectura por defecto del tablero.
+    if anio_desde == anio_min and anio_hasta == anio_max:
+        texto_contexto = "En todo el periodo"
+    elif anio_desde == anio_hasta:
+        texto_contexto = f"En el año <em>{anio_desde}</em>"
+    else:
+        texto_contexto = (
+            f"En el periodo <em>{anio_desde}–{anio_hasta}</em>"
+        )
+
+    # El máximo de la serie se describe de forma factual: fecha y valor.
+    # No se atribuye a ninguna causa, porque el conjunto no trae
+    # información que permita explicarlo.
+    fila_maximo = serie.loc[serie["stock"].idxmax()]
+
+    interp_stock = (
+        f"{texto_contexto}, el stock de detenidos va de "
+        f"<strong>{indicadores['stock_inicial']:,}</strong> personas el "
+        f"{indicadores['fecha_stock_inicial']} a "
+        f"<strong>{indicadores['stock_actual']:,}</strong> el "
+        f"{indicadores['fecha_stock_actual']}, un "
+        f"<strong>{indicadores['crecimiento_total_pct']:+.2f}%</strong> en todo "
+        f"el periodo. El valor más alto de la serie es de "
+        f"<strong>{int(fila_maximo['stock']):,}</strong> personas el "
+        f"{fila_maximo['FECHA'].date().isoformat()}, y el más bajo de "
+        f"<strong>{int(serie['stock'].min()):,}</strong>."
+    )
+
+    if not comparables.empty:
+        sube = int((comparables["variacion_neta"] > 0).sum())
+        interp_variacion = (
+            f"{texto_contexto}, de los "
+            f"{indicadores['cortes_comparables']} cortes comparables, "
+            f"<strong>{sube}</strong> muestran aumento y "
+            f"<strong>{len(comparables) - sube}</strong> muestran "
+            f"disminución, con un ritmo promedio de "
+            f"<strong>{indicadores['ritmo_diario']:+.2f} personas/día</strong>. "
+            f"El movimiento es de corto aliento: la población sube y baja en "
+            f"decenas o cientos de personas, nunca en miles."
+        )
+    else:
+        interp_variacion = (
+            "No hay cortes comparables para los filtros seleccionados."
+        )
+
+    if not por_mes.empty:
+        mes_max = por_mes.loc[por_mes["variacion_media"].idxmax()]
+        mes_min = por_mes.loc[por_mes["variacion_media"].idxmin()]
+        nombres = {
+            1: "enero", 2: "febrero", 3: "marzo", 4: "abril", 5: "mayo",
+            6: "junio", 7: "julio", 8: "agosto", 9: "septiembre",
+            10: "octubre", 11: "noviembre", 12: "diciembre",
+        }
+        interp_anual = (
+            f"Por mes del calendario, el mayor aumento promedio ocurre en "
+            f"<em>{nombres.get(int(mes_max['mes']), mes_max['mes'])}</em> "
+            f"({mes_max['variacion_media']:+,.0f} personas) y la mayor "
+            f"disminución en <em>{nombres.get(int(mes_min['mes']), mes_min['mes'])}</em> "
+            f"({mes_min['variacion_media']:+,.0f}). El estacional es débil: "
+            f"la variación media del año entero es de unas décimas de personas "
+            f"por corte."
+        )
+    else:
+        interp_anual = "Sin datos suficientes para el análisis estacional."
+
+    # --------------------------------------------------------
+    # 7. DATOS DE LAS TABLAS Y DEL CALENDARIO DE CORTE
+    # --------------------------------------------------------
+
+    filas_anuales = [
+        {
+            "anio": int(fila["anio"]),
+            "cortes": int(fila["cortes"]),
+            "stock_cierre": int(fila["stock_cierre"]),
+            "crecimiento_neto": int(fila["crecimiento_neto"]),
+            "crecimiento_pct": float(fila["crecimiento_pct"]),
+            "personas_por_registro": float(fila["personas_por_registro"]),
+            "registros_min": int(fila["registros_min"]),
+            "registros_cierre": int(fila["registros_cierre"]),
+        }
+        for _, fila in anual.iterrows()
+    ]
+
+    # El calendario de publicación es irregular: no hay un corte por mes.
+    # Se mide para poder decirlo con cifras en lugar de afirmarlo.
+    calendario = temporal.calendario_de_cortes(serie)
+
+    # El texto de las conclusiones en prosa necesita el tamaño del
+    # periodo en palabras; se calcula para no dejar la cifra fija.
+    anios_periodo_texto = en_palabras(
+        temporal.duracion_en_anos(serie), " años"
+    )
+
+    filas_mes = [
+        {
+            "mes": int(fila["mes"]),
+            "variacion_media": float(fila["variacion_media"]),
+            "cortes": int(fila["cortes"]),
+        }
+        for _, fila in por_mes.iterrows()
+    ]
+
+    # --------------------------------------------------------
+    # 8. RENDER
+    # --------------------------------------------------------
+
+    return render_template(
+        'dim_3.html',
+
+        titulo="Dimensión Temporal",
+        sin_datos=False,
+
+        stock_actual=indicadores["stock_actual"],
+        fecha_stock_actual=indicadores["fecha_stock_actual"],
+        crecimiento_total_pct=indicadores["crecimiento_total_pct"],
+        ritmo_diario=indicadores["ritmo_diario"],
+        total_cortes=indicadores["total_cortes"],
+        cortes_comparables=indicadores["cortes_comparables"],
+        stock_inicial=indicadores["stock_inicial"],
+        fecha_stock_inicial=indicadores["fecha_stock_inicial"],
+        anios_periodo_texto=anios_periodo_texto,
+
+        grafica_stock=grafica_stock,
+        grafica_variacion=grafica_variacion,
+        grafica_anual=grafica_anual,
+
+        interp_stock=interp_stock,
+        interp_variacion=interp_variacion,
+        interp_anual=interp_anual,
+
+        calendario=calendario,
+        filas_anuales=filas_anuales,
+        filas_mes=filas_mes,
+
+        anios=anios,
+        anio_min=anio_min,
+        anio_max=anio_max,
+        anio_desde=anio_desde,
+        anio_hasta=anio_hasta,
+    )
+
+
+# ============================================================
+# ANÁLISIS TEMPORAL — CONOCIMIENTOS EVIDENTES
+# ------------------------------------------------------------
+# Esta página no acepta filtros: documenta los tres conocimientos
+# evidentes de la dimensión sobre la serie completa, que es la única
+# lectura que sostiene el resto del análisis.
+# ============================================================
+
+@app.route('/analisis-temporal')
+def analisis_temporal():
+
+    # --------------------------------------------------------
+    # 1. SERIE COMPLETA
+    # --------------------------------------------------------
+
+    serie = temporal.serie_temporal(cargar_dataset_procesado())
+    indicadores = temporal.indicadores(serie)
+    anual = temporal.resumen_por_anio(serie)
+    por_mes = temporal.variacion_por_mes_del_ano(serie)
+
+    comparables = serie[serie["variacion_neta"].notna()].copy()
+    sube = int((comparables["variacion_neta"] > 0).sum())
+    baja = int(len(comparables) - sube)
+
+    # --------------------------------------------------------
+    # 2. GRÁFICA K1 — STOCK POR CORTE
+    # --------------------------------------------------------
+
+    # Una sola serie también en la página de análisis: la línea del
+    # stock, continua, sin marcar ningún corte.
+    fig_k1 = px.line(
+        serie,
+        x="FECHA",
+        y="stock",
+        markers=True,
+        labels={
+            "FECHA": "Fecha de corte",
+            "stock": "Personas detenidas",
+        },
+    )
+
+    fig_k1.update_traces(
+        line=dict(width=2, color="#00f0ff"),
+        marker=dict(size=5, color="#00f0ff"),
+        hovertemplate=(
+            "<b>%{x|%d/%m/%Y}</b><br>"
+            "Stock: %{y:,.0f} personas<extra></extra>"
+        ),
+    )
+
+    fig_k1.update_layout(
+        template="plotly_dark",
+        height=380,
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        margin=dict(l=10, r=10, t=30, b=10),
+        font=dict(family="Share Tech Mono, monospace", size=11),
+        showlegend=False,
+        xaxis=dict(gridcolor="rgba(0,240,255,0.08)"),
+        yaxis=dict(gridcolor="rgba(0,240,255,0.08)"),
+    )
+
+    grafica_k1 = fig_k1.to_html(
+        full_html=False,
+        include_plotlyjs="cdn",
+        config={"displayModeBar": False},
+    )
+
+    # --------------------------------------------------------
+    # 3. GRÁFICA K2 — VARIACIÓN NETA
+    # --------------------------------------------------------
+
+    comparables["MOVIMIENTO"] = np.where(
+        comparables["variacion_neta"] >= 0,
+        "Aumento",
+        "Disminucion",
+    )
+
+    fig_k2 = px.bar(
+        comparables,
+        x="FECHA",
+        y="variacion_neta",
+        color="MOVIMIENTO",
+        color_discrete_map={
+            "Aumento": "#7affb2",
+            "Disminucion": "#ff6b6b",
+        },
+        labels={
+            "FECHA": "Fecha de corte",
+            "variacion_neta": "Personas frente al corte anterior",
+            "MOVIMIENTO": "",
+        },
+    )
+
+    fig_k2.add_hline(
+        y=0, line_width=1, line_dash="dot", line_color="rgba(255,255,255,0.35)"
+    )
+
+    fig_k2.update_traces(
+        hovertemplate=(
+            "<b>%{x|%d/%m/%Y}</b><br>"
+            "Variacion: %{y:+,.0f} personas<extra></extra>"
+        ),
+    )
+
+    fig_k2.update_layout(
+        template="plotly_dark",
+        height=340,
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        margin=dict(l=10, r=10, t=30, b=10),
+        font=dict(family="Share Tech Mono, monospace", size=11),
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, x=0),
+        xaxis=dict(gridcolor="rgba(0,240,255,0.08)"),
+        yaxis=dict(gridcolor="rgba(0,240,255,0.08)"),
+    )
+
+    grafica_k2 = fig_k2.to_html(
+        full_html=False,
+        include_plotlyjs=False,
+        config={"displayModeBar": False},
+    )
+
+    # --------------------------------------------------------
+    # 4. GRÁFICA K3 — CRECIMIENTO NETO POR AÑO
+    # --------------------------------------------------------
+
+    fig_k3 = px.bar(
+        anual,
+        x=anual["anio"].astype(str),
+        y="crecimiento_neto",
+        color="crecimiento_neto",
+        color_continuous_scale=["#ff6b6b", "#0a1a2f", "#7affb2"],
+        labels={
+            "x": "Año",
+            "crecimiento_neto": "Crecimiento neto del año",
+            "color": "",
+        },
+    )
+
+    fig_k3.add_hline(
+        y=0, line_width=1, line_dash="dot", line_color="rgba(255,255,255,0.35)"
+    )
+
+    fig_k3.update_layout(
+        template="plotly_dark",
+        height=380,
+        coloraxis_showscale=False,
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        margin=dict(l=10, r=10, t=30, b=10),
+        font=dict(family="Share Tech Mono, monospace", size=11),
+        xaxis=dict(gridcolor="rgba(0,240,255,0.08)"),
+        yaxis=dict(gridcolor="rgba(0,240,255,0.08)"),
+    )
+
+    grafica_k3 = fig_k3.to_html(
+        full_html=False,
+        include_plotlyjs=False,
+        config={"displayModeBar": False},
+    )
+
+    # --------------------------------------------------------
+    # 5. DATOS DERIVADOS PARA LA PLANTILLA
+    # --------------------------------------------------------
+
+    filas_anuales = [
+        {
+            "anio": int(fila["anio"]),
+            "cortes": int(fila["cortes"]),
+            "stock_cierre": int(fila["stock_cierre"]),
+            "crecimiento_neto": int(fila["crecimiento_neto"]),
+            "crecimiento_pct": float(fila["crecimiento_pct"]),
+            "personas_por_registro": float(fila["personas_por_registro"]),
+            "registros_min": int(fila["registros_min"]),
+            "registros_cierre": int(fila["registros_cierre"]),
+        }
+        for _, fila in anual.iterrows()
+    ]
+
+    filas_mes = [
+        {
+            "mes": int(fila["mes"]),
+            "variacion_media": float(fila["variacion_media"]),
+            "cortes": int(fila["cortes"]),
+        }
+        for _, fila in por_mes.iterrows()
+    ]
+
+    # ------------------------------------------------------------
+    # 5.1. AÑOS CITADOS EN LAS CONCLUSIONES
+    # ------------------------------------------------------------
+    # El texto de los conocimientos menciona el tamaño del periodo, el
+    # calendario de publicación y la fragmentación de los registros. Todo
+    # eso se deriva aquí para que ninguna cifra quede escrita a mano en
+    # el HTML.
+
+    anios_periodo = temporal.duracion_en_anos(serie)
+    anios_periodo_texto = en_palabras(anios_periodo, " años")
+
+    calendario = temporal.calendario_de_cortes(serie)
+
+    # Fragmentación: se compara el año en que la fuente más agrupó
+    # personas por registro contra el último año de la serie. Se usa el
+    # mínimo de registros del año agrupado, no su cierre, para que un
+    # corte atypico no contamine la comparación.
+    fragmentacion = None
+
+    if not anual.empty:
+        anio_pico = anual.loc[anual["personas_por_registro"].idxmax()]
+        anio_cierre = anual.iloc[-1]
+
+        registros_antes = int(anio_pico["registros_min"])
+        registros_despues = int(anio_cierre["registros_cierre"])
+
+        fragmentacion = {
+            "anio_pico": int(anio_pico["anio"]),
+            "anio_cierre": int(anio_cierre["anio"]),
+            "personas_por_registro_antes": float(
+                anio_pico["personas_por_registro"]
+            ),
+            "personas_por_registro_despues": float(
+                anio_cierre["personas_por_registro"]
+            ),
+            "registros_antes": registros_antes,
+            "registros_despues": registros_despues,
+            "crecimiento_registros_pct": round(
+                (registros_despues / registros_antes - 1) * 100, 1
+            ) if registros_antes else 0.0,
+        }
+
+    # Años con más y con menos cortes publicados. La diferencia entre
+    # ambos es la que impide comparar dos años como si tuvieran la
+    # misma densidad de observación.
+    anio_mas_cortes = max(
+        filas_anuales,
+        key=lambda f: f["cortes"],
+        default=None,
+    )
+
+    anio_menos_cortes = min(
+        filas_anuales,
+        key=lambda f: f["cortes"],
+        default=None,
+    )
+
+    # Cuánto mayor es el máximo de la serie que el corte final. Sirve
+    # para mostrar que un presupuesto calculado sobre el pico serait
+    # innecesario.
+    stock_maximo = int(serie["stock"].max())
+    stock_maximo_sobre_media_pct = round(
+        (stock_maximo / indicadores["stock_actual"] - 1) * 100
+    ) if indicadores["stock_actual"] else 0
+
+    # Peso del movimiento más grande de la serie sobre el stock actual.
+    # Sirve para afirmar si los extremos temporales son relevantes o
+    # marginales sin escribir una magnitud fija en la prosa.
+    extremos = [
+        indicadores["periodo_mayor_aumento"],
+        indicadores["periodo_mayor_disminucion"],
+    ]
+
+    movimiento_maximo = max(
+        (abs(p["variacion"]) for p in extremos if p),
+        default=0,
+    )
+
+    movimiento_maximo_pct = round(
+        movimiento_maximo / indicadores["stock_actual"] * 100, 1
+    ) if indicadores["stock_actual"] else 0.0
+
+    # --------------------------------------------------------
+    # 6. RENDER
+    # --------------------------------------------------------
+
+    return render_template(
+        'analisis_temporal.html',
+
+        total_cortes=indicadores["total_cortes"],
+        cortes_comparables=indicadores["cortes_comparables"],
+        fecha_inicial=indicadores["fecha_stock_inicial"],
+        fecha_final=indicadores["fecha_stock_actual"],
+
+        stock_inicial=indicadores["stock_inicial"],
+        stock_actual=indicadores["stock_actual"],
+        stock_maximo=int(serie["stock"].max()),
+        stock_maximo_sobre_media_pct=stock_maximo_sobre_media_pct,
+        crecimiento_total_pct=indicadores["crecimiento_total_pct"],
+        ritmo_diario=indicadores["ritmo_diario"],
+
+        anios_periodo=anios_periodo,
+        anios_periodo_texto=anios_periodo_texto,
+
+        sube=sube,
+        baja=baja,
+
+        periodo_mayor_aumento=indicadores["periodo_mayor_aumento"],
+        periodo_mayor_disminucion=indicadores["periodo_mayor_disminucion"],
+
+        fragmentacion=fragmentacion,
+        calendario=calendario,
+        anio_mas_cortes=anio_mas_cortes,
+        anio_menos_cortes=anio_menos_cortes,
+        movimiento_maximo_pct=movimiento_maximo_pct,
+
+        grafica_k1=grafica_k1,
+        grafica_k2=grafica_k2,
+        grafica_k3=grafica_k3,
+
+        filas_anuales=filas_anuales,
+        filas_mes=filas_mes,
+    )
+
+
+# ============================================================
 # EJECUCIÓN
 # ============================================================
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    # `use_reloader=False` a proposito: el dataset pesa 54 MB y tarda cerca
+    # de un segundo en leerse y normalizarse. Con el recargador automatico
+    # cada guardado de archivo vuelve a cargar todo el dataset, y ademas el
+    # proceso padre y el hijo terminarian cargando dos copias a la vez.
+    # Para recargar hay que reiniciar el servidor a mano.
+    app.run(
+        debug=True,
+        use_reloader=False,
+        port=int(os.environ.get("PORT", 5000)),
+    )

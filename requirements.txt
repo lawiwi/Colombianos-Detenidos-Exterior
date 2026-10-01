@@ -1,0 +1,26 @@
+# Dependencias de la aplicacion web de analisis.
+#
+# Las versiones estan fijadas para que la instalacion sea reproducible
+# tanto en el equipo local como en el servidor de publicacion: un
+# `pip install -r requirements.txt` parte siempre del mismo punto.
+#
+# Version de Python: 3.14 (ver el archivo .python-version, que Render
+# lee para preparar el entorno). En local sirve cualquier 3.12 o
+# superior, que es el minimo exigido por las dependencias de abajo.
+
+# Framework web y servidor de aplicaciones WSGI para produccion.
+# `flask` solo se usa para desarrollo; en el servidor entra `gunicorn`.
+Flask==3.1.3
+gunicorn==26.2.0
+
+# Carga y agregacion del conjunto de datos.
+# pandas 3.x requiere Python 3.11 o superior.
+pandas==3.0.5
+
+# numpy se fija de forma explicita porque es la dependencia que mas
+# se rompe entre versiones mayores: pandas 3.0.5 admite cualquier
+# numpy 1.26+ / 2.x, pero un numpy 3.0 futuro lo haria fallar.
+numpy==2.5.3
+
+# Visualizaciones interactivas de los tableros de cada dimension.
+plotly==7.1.0

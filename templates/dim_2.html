@@ -1,0 +1,672 @@
+{% extends "base.html" %}
+
+{% block title %}
+Dimensión Territorial
+{% endblock %}
+
+
+{% block extra_css %}
+
+<link rel="stylesheet"
+      href="{{ url_for(
+          'static',
+          filename='css/style_dashboards.css'
+      ) }}">
+
+{% endblock %}
+
+
+{% block content %}
+
+
+<!-- ======================================================
+     ENCABEZADO
+======================================================= -->
+
+<div class="dashboard-header cyber-panel">
+
+    <h1 class="dashboard-main-title">
+        DIMENSIÓN TERRITORIAL
+    </h1>
+
+    <p class="dashboard-question">
+        ¿Cómo se distribuye la población de ciudadanos
+        colombianos detenidos en el exterior y sus principales
+        características entre los territorios disponibles
+        (continente, país de prisión y jurisdicción consular)?
+    </p>
+
+    {% if analisis_url %}
+    <a href="{{ analisis_url }}"
+       class="btn-analysis">
+
+        <span class="btn-analysis-icon"></span>
+
+        VER ANÁLISIS COMPLETO
+
+    </a>
+    {% endif %}
+
+</div>
+
+
+<!-- ======================================================
+     GRID PRINCIPAL
+======================================================= -->
+
+<div class="dashboard-grid">
+
+
+    <!-- ==================================================
+         COLUMNA IZQUIERDA — FILTROS + VARIABLES
+    =================================================== -->
+
+    <aside class="sidebar-left">
+
+        <!-- FILTROS -->
+
+        <div class="cyber-panel">
+
+            <h3 class="panel-title">
+                FILTROS
+            </h3>
+
+
+            <form method="GET"
+                  action="{{ url_for('dimension_territorial') }}">
+
+                <div class="filter-group">
+
+                    <label>CONTINENTE</label>
+
+                    <select name="continente" class="cyber-input">
+
+                        <option value="">
+                            TODOS LOS CONTINENTES
+                        </option>
+
+                        {% for continente in lista_continentes %}
+
+                        <option value="{{ continente }}"
+                            {% if continente == continente_seleccionado %}
+                            selected
+                            {% endif %}>
+
+                            {{ continente }}
+
+                        </option>
+
+                        {% endfor %}
+
+                    </select>
+
+                </div>
+
+
+                <div class="filter-group">
+
+                    <label>DELITO</label>
+
+                    <select name="delito" class="cyber-input">
+
+                        <option value="">
+                            TODOS LOS DELITOS
+                        </option>
+
+                        {% for delito in lista_delitos %}
+
+                        <option value="{{ delito }}"
+                            {% if delito == delito_seleccionado %}
+                            selected
+                            {% endif %}>
+
+                            {{ delito }}
+
+                        </option>
+
+                        {% endfor %}
+
+                    </select>
+
+                </div>
+
+
+                <button type="submit"
+                        class="cyber-btn w-100">
+
+                    APLICAR
+
+                </button>
+
+            </form>
+
+
+            <!-- FILTROS ACTIVOS -->
+
+            <div class="filter-description">
+
+                <span class="neon-text">
+                    FILTROS ACTIVOS
+                </span>
+
+                <div class="pais-activo">
+
+                    {% if continente_seleccionado %}
+
+                        <span>{{ icono_continente }}</span>
+
+                        <span>{{ continente_seleccionado }}</span>
+
+                    {% else %}
+
+                        <span class="pais-todos">
+                            🌐 Todos los continentes
+                        </span>
+
+                    {% endif %}
+
+                </div>
+
+                <p>
+                    Delito:
+                    {% if delito_seleccionado %}
+                        {{ delito_seleccionado }}
+                    {% else %}
+                        Todos
+                    {% endif %}
+                </p>
+
+                <p>
+                    Territorios con datos:
+                    {{ n_paises }} países ·
+                    {{ n_consulados }} consulados
+                </p>
+
+            </div>
+
+        </div>
+
+
+        <!-- DESCRIPCIÓN DE VARIABLES -->
+
+        <div class="cyber-panel variables-panel-sidebar">
+
+            <h3 class="panel-title">
+                VARIABLES UTILIZADAS
+            </h3>
+
+
+            <div class="variable-item-sidebar">
+
+                <span class="variable-name-sidebar">
+                    CANTIDAD
+                </span>
+
+                <span class="variable-desc-sidebar">
+                    Número de personas representadas en cada
+                    registro. Base de todas las sumatorias y
+                    porcentajes del tablero.
+                </span>
+
+            </div>
+
+
+            <div class="variable-item-sidebar">
+
+                <span class="variable-name-sidebar">
+                    PAÍS PRISIÓN
+                </span>
+
+                <span class="variable-desc-sidebar">
+                    País donde se encuentra recluida la
+                    persona. Unidad territorial principal
+                    del análisis.
+                </span>
+
+            </div>
+
+
+            <div class="variable-item-sidebar">
+
+                <span class="variable-name-sidebar">
+                    CONTINENTE
+                </span>
+
+                <span class="variable-desc-sidebar">
+                    Variable derivada de PAÍS PRISIÓN que
+                    agrupa los países en América, Europa,
+                    Asia, África y Oceanía.
+                </span>
+
+            </div>
+
+
+            <div class="variable-item-sidebar">
+
+                <span class="variable-name-sidebar">
+                    CONSULADO
+                </span>
+
+                <span class="variable-desc-sidebar">
+                    Jurisdicción consular que atiende el caso.
+                    Funciona como nivel de ciudad o zona
+                    dentro de cada país.
+                </span>
+
+            </div>
+
+
+            <div class="variable-item-sidebar">
+
+                <span class="variable-name-sidebar">
+                    LATITUD / LONGITUD
+                </span>
+
+                <span class="variable-desc-sidebar">
+                    Coordenadas geográficas del consulado.
+                    Permiten ubicar las concentraciones en
+                    el mapa.
+                </span>
+
+            </div>
+
+
+            <div class="variable-item-sidebar">
+
+                <span class="variable-name-sidebar">
+                    DELITO
+                </span>
+
+                <span class="variable-desc-sidebar">
+                    Tipo penal asociado a la detención. Se
+                    usa para comparar el perfil delictivo
+                    entre territorios.
+                </span>
+
+            </div>
+
+        </div>
+
+    </aside>
+
+
+    <!-- ==================================================
+         COLUMNA CENTRAL — KPIs + GRÁFICAS
+    =================================================== -->
+
+    <main class="main-dashboard">
+
+
+        <!-- ==============================================
+             INDICADORES
+        =============================================== -->
+
+        <div class="kpi-container">
+
+
+            <div class="cyber-panel kpi-card">
+
+                <p class="kpi-label">
+                    POBLACIÓN TOTAL
+                </p>
+
+                <h2 class="kpi-value">
+                    {{ "{:,}".format(poblacion_total) }}
+                </h2>
+
+                <p class="kpi-description">
+                    Suma de CANTIDAD · {{ "{:,}".format(total_registros) }} registros
+                </p>
+
+            </div>
+
+
+            <div class="cyber-panel kpi-card">
+
+                <p class="kpi-label">
+                    TERRITORIO LÍDER
+                </p>
+
+                <h2 class="kpi-value">
+                    {{ pais_lider }}
+                </h2>
+
+                <p class="kpi-description">
+                    {{ "%.2f"|format(pct_lider) }}% de la población con país identificado
+                </p>
+
+            </div>
+
+
+            <div class="cyber-panel kpi-card">
+
+                <p class="kpi-label">
+                    CONCENTRACIÓN TOP 5
+                </p>
+
+                <h2 class="kpi-value">
+                    {{ "%.1f"|format(concentracion_top5) }}%
+                </h2>
+
+                <p class="kpi-description">
+                    Participación de los 5 países con más detenidos
+                </p>
+
+            </div>
+
+
+            <div class="cyber-panel kpi-card">
+
+                <p class="kpi-label">
+                    SIN PAÍS IDENTIFICADO
+                </p>
+
+                <h2 class="kpi-value">
+                    {{ "%.1f"|format(pct_sin_pais) }}%
+                </h2>
+
+                <p class="kpi-description">
+                    Desconocido + extradición / repatriación
+                </p>
+
+            </div>
+
+        </div>
+
+
+        <!-- ==============================================
+             GRÁFICA 1 — MAPA POR CONSULADO
+        =============================================== -->
+
+        <div class="cyber-panel chart-panel">
+
+            <h3 class="panel-title">
+                MAPA DE CONCENTRACIÓN TERRITORIAL
+            </h3>
+
+            <div class="plot-container">
+                {{ grafica_mapa | safe }}
+            </div>
+
+            <div class="chart-interpretation">
+
+                <strong>INTERPRETACIÓN</strong>
+
+                <p>{{ interp_mapa | safe }}</p>
+
+            </div>
+
+        </div>
+
+
+        <!-- ==============================================
+             GRÁFICA 2 — PARTICIPACIÓN POR PAÍS
+        =============================================== -->
+
+        <div class="cyber-panel chart-panel">
+
+            <h3 class="panel-title">
+                PARTICIPACIÓN PORCENTUAL POR PAÍS DE PRISIÓN
+            </h3>
+
+            <div class="plot-container">
+                {{ grafica_paises | safe }}
+            </div>
+
+            <div class="chart-interpretation">
+
+                <strong>INTERPRETACIÓN</strong>
+
+                <p>{{ interp_paises | safe }}</p>
+
+            </div>
+
+        </div>
+
+
+        <!-- ==============================================
+             GRÁFICA 3 — CONTINENTES SOBRE EL TOTAL GLOBAL (DONA)
+        =============================================== -->
+
+        <div class="cyber-panel chart-panel">
+
+            <h3 class="panel-title">
+                PARTICIPACIÓN DE CADA CONTINENTE EN EL TOTAL GLOBAL
+            </h3>
+
+            <div class="plot-container">
+                {{ grafica_continentes | safe }}
+            </div>
+
+            <div class="chart-interpretation">
+
+                <strong>INTERPRETACIÓN</strong>
+
+                <p>{{ interp_continentes | safe }}</p>
+
+            </div>
+
+        </div>
+
+
+        <!-- ==============================================
+             GRÁFICA 4 — CONSULADOS (CIUDAD / ZONA)
+        =============================================== -->
+
+        <div class="cyber-panel chart-panel">
+
+            <h3 class="panel-title">
+                TOP 15 JURISDICCIONES CONSULARES
+            </h3>
+
+            <div class="plot-container">
+                {{ grafica_consulados | safe }}
+            </div>
+
+            <div class="chart-interpretation">
+
+                <strong>INTERPRETACIÓN</strong>
+
+                <p>{{ interp_consulados | safe }}</p>
+
+            </div>
+
+        </div>
+
+
+        <!-- ==============================================
+             GRÁFICA 5 — CIUDADES DEL TERRITORIO DIVIDIDAS POR DELITO
+        =============================================== -->
+
+        <div class="cyber-panel chart-panel">
+
+            <h3 class="panel-title">
+                CIUDADES DEL TERRITORIO: PARTICIPACIÓN Y PERFIL DELICTIVO
+            </h3>
+
+            <div class="plot-container">
+                {{ grafica_perfil | safe }}
+            </div>
+
+            <div class="chart-interpretation">
+
+                <strong>INTERPRETACIÓN</strong>
+
+                <p>{{ interp_perfil | safe }}</p>
+
+            </div>
+
+        </div>
+
+
+    </main>
+
+
+    <!-- ==================================================
+         COLUMNA DERECHA — CONCLUSIONES
+    =================================================== -->
+
+    <aside class="cyber-panel sidebar-right">
+
+        <h3 class="panel-title">
+            CONCLUSIONES
+        </h3>
+
+
+        <div class="dashboard-conclusion">
+
+            <span class="neon-text">
+                CONOCIMIENTO 1
+            </span>
+
+            <p>
+                La distribución es altamente concentrada:
+                España, Ecuador, Estados Unidos, Venezuela y
+                Chile reúnen cerca del 75 % de los detenidos
+                con país identificado. La gestión consular
+                puede focalizarse en pocos territorios y
+                cubrir a la mayoría de la población.
+            </p>
+
+        </div>
+
+
+        <div class="dashboard-conclusion">
+
+            <span class="neon-text">
+                CONOCIMIENTO 2
+            </span>
+
+            <p>
+                América concentra alrededor de tres de cada
+                cuatro detenidos con país conocido, y Europa
+                aporta casi todo el resto (principalmente
+                España). Es un fenómeno regional, ligado a la
+                cercanía geográfica y a las rutas migratorias.
+            </p>
+
+        </div>
+
+
+        <div class="dashboard-conclusion">
+
+            <span class="neon-text">
+                CONOCIMIENTO 3
+            </span>
+
+            <p>
+                Cada territorio tiene un perfil propio:
+                Panamá, Perú y Estados Unidos superan el
+                70 % de casos por narcotráfico; en Argentina
+                y México predomina el robo o hurto; en
+                Venezuela pesan más los delitos violentos;
+                y Japón casi no reporta el tipo de delito.
+            </p>
+
+        </div>
+
+
+        <div class="dashboard-conclusion">
+
+            <span class="neon-text">
+                CONOCIMIENTO 4
+            </span>
+
+            <p>
+                Las zonas de frontera son un caso particular:
+                consulados como Tulcán, Esmeraldas, Nueva
+                Loja (Ecuador) y San Cristóbal (Venezuela)
+                aparecen entre los de mayor carga, al nivel
+                de capitales como Lima o Ciudad de México.
+            </p>
+
+        </div>
+
+
+        <div class="dashboard-warning">
+
+            <strong>
+                LIMITACIÓN DEL ANÁLISIS
+            </strong>
+
+            <p>
+                Más de la mitad de la población tiene el país
+                de prisión como <em>Desconocido</em>, por lo
+                que los porcentajes por país se calculan solo
+                sobre la población identificada. El consulado
+                es más completo, pero indica la jurisdicción
+                que atiende el caso, no necesariamente la
+                cárcel exacta.
+            </p>
+
+        </div>
+
+
+        <div class="dashboard-decision">
+
+            <strong>
+                POSIBLE DECISIÓN SUSTENTADA
+            </strong>
+
+            <p>
+                Reforzar la capacidad jurídica y de visitas
+                carcelarias en los consulados de Madrid,
+                Panamá, Quito y Santiago, y crear un plan
+                específico para los consulados de frontera
+                con Ecuador y Venezuela. Las campañas de
+                prevención deben adaptarse al delito
+                dominante de cada país.
+            </p>
+
+        </div>
+
+
+    </aside>
+
+
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+
+    const elements = document.querySelectorAll(
+        '.kpi-card, .chart-panel'
+    );
+
+    if (!('IntersectionObserver' in window)) {
+        elements.forEach(function (el) {
+            el.classList.add('is-visible');
+        });
+        return;
+    }
+
+    const observer = new IntersectionObserver(
+        function (entries) {
+            entries.forEach(function (entry) {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('is-visible');
+                    observer.unobserve(entry.target);
+
+                    /* Plotly calcula mal el ancho si la gráfica
+                       estaba oculta: se fuerza un resize */
+                    if (window.Plotly) {
+                        entry.target
+                            .querySelectorAll('.plotly-graph-div')
+                            .forEach(function (g) {
+                                Plotly.Plots.resize(g);
+                            });
+                    }
+                }
+            });
+        },
+        { threshold: 0.10, rootMargin: '0px 0px -30px 0px' }
+    );
+
+    elements.forEach(function (el) {
+        observer.observe(el);
+    });
+
+});
+</script>
+
+{% endblock %}
