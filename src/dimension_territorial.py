@@ -277,6 +277,12 @@ def _limpiar_delito(valor):
     return DELITOS.get(clave, clave.capitalize())
 
 
+def _a_numero(serie):
+    """Convierte a número aceptando coma decimal ('4,61' → 4.61)."""
+    texto = serie.astype(str).str.strip().str.replace(',', '.', regex=False)
+    return pd.to_numeric(texto, errors='coerce')
+
+
 _CACHE = {}
 
 
@@ -326,8 +332,20 @@ def preparar_territorial(df):
         t['DELITO'] = LABEL_DELITO_SIN_DATO
 
     # ---------- Coordenadas ----------
-    t['LAT'] = pd.to_numeric(df[c_lat], errors='coerce') if c_lat else float('nan')
-    t['LON'] = pd.to_numeric(df[c_lon], errors='coerce') if c_lon else float('nan')
+    t['LAT'] = _a_numero(df[c_lat]) if c_lat else float('nan')
+    t['LON'] = _a_numero(df[c_lon]) if c_lon else float('nan')
+
+    # Si no hay columnas de latitud/longitud (o vienen vacías), se intenta
+    # con la columna geocodificada: "POINT (-78.5 -0.2)" → lon, lat
+    if t['LAT'].isna().all() or t['LON'].isna().all():
+        c_geo = _buscar_columna(df, 'GEOCODED COLUMN', 'geocoded_column',
+                                'GEOCODED', 'UBICACION', 'COORDENADAS')
+        if c_geo is not None:
+            puntos = df[c_geo].astype(str).str.extract(
+                r'(-?\d+(?:[.,]\d+)?)\s+(-?\d+(?:[.,]\d+)?)'
+            )
+            t['LON'] = _a_numero(puntos[0])
+            t['LAT'] = _a_numero(puntos[1])
 
     _CACHE['origen'] = df
     _CACHE['preparado'] = t
@@ -389,53 +407,37 @@ def _sin_datos(mensaje='No hay datos para la combinación de filtros seleccionad
 # GRÁFICAS
 # ============================================================
 
-def grafica_mapa(t, render):
-    """Mapa de burbujas por consulado (usa LATITUD / LONGITUD)."""
-    g = t[t['LAT'].notna() & t['LON'].notna()
-          & (t['LAT'] != 0) & (t['LON'] != 0)
-          & ~t['CONSULADO'].str.contains('Asistencia', case=False)]
+ISO3 = {
+    'Ecuador': 'ECU', 'Estados Unidos': 'USA', 'Venezuela': 'VEN', 'Chile': 'CHL',
+    'Panamá': 'PAN', 'Perú': 'PER', 'México': 'MEX', 'Argentina': 'ARG',
+    'Costa Rica': 'CRI', 'Brasil': 'BRA', 'Bolivia': 'BOL',
+    'República Dominicana': 'DOM', 'Honduras': 'HND', 'Guatemala': 'GTM',
+    'El Salvador': 'SLV', 'Canadá': 'CAN', 'Nicaragua': 'NIC', 'Paraguay': 'PRY',
+    'Cuba': 'CUB', 'Aruba': 'ABW', 'Curazao': 'CUW', 'Uruguay': 'URY',
+    'Trinidad y Tobago': 'TTO', 'Haití': 'HTI', 'Surinam': 'SUR', 'Guyana': 'GUY',
+    'Guayana Francesa': 'GUF', 'Bonaire': 'BES', 'Bahamas': 'BHS',
+    'Martinica': 'MTQ', 'Jamaica': 'JAM', 'Belice': 'BLZ', 'Puerto Rico': 'PRI',
+    'España': 'ESP', 'Italia': 'ITA', 'Reino Unido': 'GBR', 'Francia': 'FRA',
+    'Alemania': 'DEU', 'Suecia': 'SWE', 'Portugal': 'PRT', 'Bélgica': 'BEL',
+    'Países Bajos': 'NLD', 'Rusia': 'RUS', 'Suiza': 'CHE', 'Austria': 'AUT',
+    'Grecia': 'GRC', 'Malta': 'MLT', 'Rumania': 'ROU', 'República Checa': 'CZE',
+    'Finlandia': 'FIN', 'Albania': 'ALB', 'Polonia': 'POL', 'Dinamarca': 'DNK',
+    'Montenegro': 'MNE', 'Croacia': 'HRV', 'Bielorrusia': 'BLR',
+    'Eslovenia': 'SVN', 'Noruega': 'NOR', 'Irlanda': 'IRL', 'Hungría': 'HUN',
+    'Ucrania': 'UKR', 'Georgia': 'GEO', 'Turquía': 'TUR',
+    'Japón': 'JPN', 'Hong Kong': 'HKG', 'China': 'CHN', 'Israel': 'ISR',
+    'Tailandia': 'THA', 'Emiratos Árabes Unidos': 'ARE', 'Vietnam': 'VNM',
+    'India': 'IND', 'Catar': 'QAT', 'Singapur': 'SGP', 'Camboya': 'KHM',
+    'Malasia': 'MYS', 'Corea del Sur': 'KOR', 'Kazajistán': 'KAZ',
+    'Filipinas': 'PHL', 'Líbano': 'LBN', 'Indonesia': 'IDN',
+    'Egipto': 'EGY', 'Sudáfrica': 'ZAF', 'Kenia': 'KEN', 'Marruecos': 'MAR',
+    'Togo': 'TGO', 'Senegal': 'SEN', 'Mozambique': 'MOZ', 'Ghana': 'GHA',
+    'Tanzania': 'TZA', 'Etiopía': 'ETH', 'Nigeria': 'NGA', 'Guinea': 'GIN',
+    'Australia': 'AUS', 'Nueva Zelanda': 'NZL',
+}
 
-    if g.empty:
-        return _sin_datos('El conjunto filtrado no tiene coordenadas de consulado.')
 
-    g = (g.groupby('CONSULADO')
-           .agg(CANTIDAD=('CANTIDAD', 'sum'),
-                LAT=('LAT', 'median'),
-                LON=('LON', 'median'),
-                PAIS=('PAIS', lambda s: s.mode().iat[0] if not s.mode().empty else ''))
-           .reset_index())
-    g = g[g['CANTIDAD'] > 0].sort_values('CANTIDAD')
-    if g.empty:
-        return _sin_datos()
-
-    total = g['CANTIDAD'].sum()
-    g['PCT'] = g['CANTIDAD'] / total * 100
-    sizeref = 2.0 * g['CANTIDAD'].max() / (42 ** 2)
-
-    fig = go.Figure(go.Scattergeo(
-        lon=g['LON'],
-        lat=g['LAT'],
-        mode='markers',
-        customdata=g[['CONSULADO', 'PAIS', 'CANTIDAD', 'PCT']].values,
-        hovertemplate=(
-            '<b>%{customdata[0]}</b><br>'
-            'País predominante: %{customdata[1]}<br>'
-            'Cantidad: %{customdata[2]:,.0f}<br>'
-            'Participación: %{customdata[3]:.2f}%<extra></extra>'
-        ),
-        marker=dict(
-            size=g['CANTIDAD'],
-            sizemode='area',
-            sizeref=sizeref,
-            sizemin=3,
-            color=g['CANTIDAD'],
-            colorscale=ESCALA_NEON,
-            opacity=0.75,
-            line=dict(width=0.8, color='rgba(255,255,255,0.5)'),
-            showscale=False,
-        ),
-    ))
-
+def _estilo_geo(fig):
     fig.update_geos(
         projection_type='natural earth',
         showland=True, landcolor='#0d1626',
@@ -447,7 +449,79 @@ def grafica_mapa(t, render):
         lataxis_range=[-58, 75],
     )
     _estilo(fig, alto=460, margin=dict(l=0, r=0, t=0, b=0))
-    return render.html(fig)
+
+
+def grafica_mapa(t, paises, render):
+    """
+    Mapa territorial. Devuelve (html, modo):
+      · modo 'consulado' → burbujas por consulado si hay LATITUD / LONGITUD.
+      · modo 'pais'      → mapa coloreado por país (no depende de coordenadas).
+    """
+    g = t[t['LAT'].notna() & t['LON'].notna()
+          & (t['LAT'] != 0) & (t['LON'] != 0)
+          & t['LAT'].between(-90, 90) & t['LON'].between(-180, 180)
+          & ~t['CONSULADO'].str.contains('Asistencia', case=False)]
+
+    if not g.empty:
+        g = (g.groupby('CONSULADO')
+               .agg(CANTIDAD=('CANTIDAD', 'sum'),
+                    LAT=('LAT', 'median'),
+                    LON=('LON', 'median'),
+                    PAIS=('PAIS', lambda s: s.mode().iat[0] if not s.mode().empty else ''))
+               .reset_index())
+        g = g[g['CANTIDAD'] > 0].sort_values('CANTIDAD')
+
+    # ---------- Modo 1: burbujas por consulado ----------
+    if not g.empty:
+        total = g['CANTIDAD'].sum()
+        g['PCT'] = g['CANTIDAD'] / total * 100
+        sizeref = 2.0 * g['CANTIDAD'].max() / (42 ** 2)
+
+        fig = go.Figure(go.Scattergeo(
+            lon=g['LON'],
+            lat=g['LAT'],
+            mode='markers',
+            customdata=g[['CONSULADO', 'PAIS', 'CANTIDAD', 'PCT']].values,
+            hovertemplate=(
+                '<b>%{customdata[0]}</b><br>'
+                'País predominante: %{customdata[1]}<br>'
+                'Cantidad: %{customdata[2]:,.0f}<br>'
+                'Participación: %{customdata[3]:.2f}%<extra></extra>'
+            ),
+            marker=dict(
+                size=g['CANTIDAD'],
+                sizemode='area',
+                sizeref=sizeref,
+                sizemin=3,
+                color=g['CANTIDAD'],
+                colorscale=ESCALA_NEON,
+                opacity=0.75,
+                line=dict(width=0.8, color='rgba(255,255,255,0.5)'),
+                showscale=False,
+            ),
+        ))
+        _estilo_geo(fig)
+        return render.html(fig), 'consulado'
+
+    # ---------- Modo 2: mapa coloreado por país ----------
+    p = paises.assign(ISO3=paises['PAIS'].map(ISO3)).dropna(subset=['ISO3'])
+    if p.empty:
+        return _sin_datos(), 'ninguno'
+
+    fig = go.Figure(go.Choropleth(
+        locations=p['ISO3'],
+        z=p['CANTIDAD'],
+        text=p['PAIS'],
+        customdata=p[['PCT']].values,
+        colorscale=[[0, '#0b2a3a'], [0.35, CYAN], [1, PINK]],
+        marker_line_color='rgba(0,240,255,0.35)',
+        marker_line_width=0.5,
+        showscale=False,
+        hovertemplate=('<b>%{text}</b><br>Cantidad: %{z:,.0f}'
+                       '<br>Participación: %{customdata[0]:.2f}%<extra></extra>'),
+    ))
+    _estilo_geo(fig)
+    return render.html(fig), 'pais'
 
 
 def grafica_paises(paises, render):
@@ -647,8 +721,9 @@ def construir_contexto_territorial(df, continente='', delito=''):
 
     # ---------- gráficas ----------
     render = _Renderizador()
+    html_mapa, modo_mapa = grafica_mapa(t, paises, render)
     contexto_graficas = dict(
-        grafica_mapa=grafica_mapa(t, render),
+        grafica_mapa=html_mapa,
         grafica_paises=grafica_paises(paises, render),
         grafica_continentes=grafica_continentes(continentes, render),
         grafica_consulados=grafica_consulados(consulados, render),
@@ -657,7 +732,7 @@ def construir_contexto_territorial(df, continente='', delito=''):
 
     # ---------- interpretaciones dinámicas ----------
     interp = _interpretaciones(paises, continentes, consulados, perfil,
-                               pct_sin_pais, poblacion_total)
+                               pct_sin_pais, poblacion_total, modo_mapa)
 
     return dict(
         # filtros
@@ -681,12 +756,23 @@ def construir_contexto_territorial(df, continente='', delito=''):
     )
 
 
-def _interpretaciones(paises, continentes, consulados, perfil, pct_sin_pais, total):
+def _interpretaciones(paises, continentes, consulados, perfil, pct_sin_pais, total,
+                      modo_mapa='consulado'):
     sin = 'No hay suficientes datos para interpretar esta gráfica con los filtros actuales.'
     out = {}
 
     # ----- Mapa -----
-    if not consulados.empty:
+    if modo_mapa == 'pais' and not paises.empty:
+        top3 = paises.head(3)
+        nombres = ', '.join(f"<em>{r.PAIS}</em> ({r.PCT:.1f}%)" for r in top3.itertuples())
+        out['interp_mapa'] = (
+            f"El color de cada país es más intenso cuanto mayor es la cantidad de "
+            f"detenidos. Las mayores concentraciones están en {nombres}. El mapa "
+            f"muestra a simple vista que la población se agrupa en el continente "
+            f"americano y en España, mientras que el resto del mundo tiene una "
+            f"presencia marginal."
+        )
+    elif not consulados.empty:
         top3 = consulados.head(3)
         nombres = ', '.join(f"<em>{r.CONSULADO}</em> ({r.PCT:.1f}%)" for r in top3.itertuples())
         pct_top10 = consulados.head(10)['PCT'].sum()
@@ -770,12 +856,12 @@ def _interpretaciones(paises, continentes, consulados, perfil, pct_sin_pais, tot
         partes = ["Cada barra muestra la composición del delito dentro de un mismo país."]
         if notas:
             partes.append("Países con un delito claramente dominante: "
-                    f"<em>{', '.join(notas)}</em>.")
+                          f"<em>{', '.join(notas)}</em>.")
         if opacos:
             partes.append("Territorios con alta proporción de delito sin dato o "
-                        f"confidencial: <em>{', '.join(opacos)}</em>.")
+                          f"confidencial: <em>{', '.join(opacos)}</em>.")
         partes.append("Las diferencias muestran que cada territorio tiene un perfil "
-                    "penal propio y no una réplica del total nacional.")
+                      "penal propio y no una réplica del total nacional.")
         out['interp_perfil'] = ' '.join(partes)
     else:
         out['interp_perfil'] = sin
