@@ -679,11 +679,15 @@ Dimensión Temporal
 
 </div>
 
+<!-- ======================================================
+     SCROLL REVEAL
+====================================================== -->
+
 <script>
 document.addEventListener('DOMContentLoaded', function () {
 
     const elements = document.querySelectorAll(
-        '.kpi-card, .chart-panel'
+        '.na-section, .na-variable-block, .na-list li, .na-knowledge'
     );
 
     if (!('IntersectionObserver' in window)) {
@@ -702,7 +706,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
             });
         },
-        { threshold: 0.10, rootMargin: '0px 0px -30px 0px' }
+        {
+            threshold: 0,
+            rootMargin: '0px 0px 0px 0px'
+        }
     );
 
     elements.forEach(function (el) {
