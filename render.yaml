@@ -1,0 +1,27 @@
+# Blueprint de Render: define el servicio web del proyecto.
+#
+# Con este archivo en la raiz, en Render basta con "New > Blueprint" y
+# apuntar al repositorio: no hay que escribir los comandos a mano en el
+# panel. Tambien se puede crear el servicio desde cero copiando los
+# mismos valores del panel.
+#
+# Ojo con `branch`: por defecto se publica `main`. Si tu trabajo todavia
+# no esta fusionado ahi, cambia este campo por tu rama (por ejemplo
+# `Dimension-Temporal`) para una prueba, o fusiona primero.
+
+services:
+  - type: web
+    name: colombianos-detenidos-exterior
+    runtime: python
+    plan: free
+    region: oregon
+    branch: main
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn wsgi:app -c gunicorn.conf.py
+    healthCheckPath: /health
+    autoDeployTrigger: commit
+    envVars:
+      # Deja el dataset procesado en la cache del proceso maestro. Ver
+      # wsgi.py y gunicorn.conf.py.
+      - key: PRECALENTAR_DATASET
+        value: "1"

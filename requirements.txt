@@ -4,8 +4,9 @@
 # tanto en el equipo local como en el servidor de publicacion: un
 # `pip install -r requirements.txt` parte siempre del mismo punto.
 #
-# Version de Python: 3.12 (ver el archivo .python-version).
-# Es el minimo exigido por las dependencias de abajo.
+# Version de Python: 3.14 (ver el archivo .python-version, que Render
+# lee para preparar el entorno). En local sirve cualquier 3.12 o
+# superior, que es el minimo exigido por las dependencias de abajo.
 
 # Framework web y servidor de aplicaciones WSGI para produccion.
 # `flask` solo se usa para desarrollo; en el servidor entra `gunicorn`.

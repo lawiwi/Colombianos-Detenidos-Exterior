@@ -17,6 +17,10 @@ evidentes a partir de indicadores, comparaciones y visualizaciones.
 
 ```
 app.py                        Rutas de Flask y contexto de las plantillas
+wsgi.py                       Entrada de producción para gunicorn
+gunicorn.conf.py              Ajustes del servidor de producción
+render.yaml                   Blueprint de despliegue en Render
+.python-version               Versión de Python que usa Render
 requirements.txt              Dependencias fijadas
 src/
   analisis_poblacional.py     Motor de cálculo de la dimensión poblacional
@@ -74,6 +78,55 @@ python scripts/verificar_publicacion.py
 Sin argumento revisa <http://127.0.0.1:5000>. Acepta otra base como
 argumento y `--omitir /dimension-2 /dimension-4` para revisar una sola
 dimensión mientras las demás están en construcción.
+
+---
+
+## Desplegar en Render
+
+El repositorio trae un **Blueprint** (`render.yaml`) para que el
+despliegue quede escrito y no dependa de acordarse de cada comando.
+
+1. En [Render](https://dashboard.render.com) entra a *New > Blueprint* y
+   conecta este repositorio.
+2. Render detecta `render.yaml` y muestra el servicio. Confirma y espera
+   el primer despliegue.
+3. La aplicación queda en una URL `https://<nombre>.onrender.com`.
+
+Si prefieres crearlo a mano con *New > Web Service*, usa estos valores:
+
+| Ajuste | Valor |
+|---|---|
+| Language | `Python 3` |
+| Build Command | `pip install -r requirements.txt` |
+| Start Command | `gunicorn wsgi:app -c gunicorn.conf.py` |
+| Health Check Path | `/health` |
+
+### Cómo funciona el arranque
+
+- `wsgi.py` lee y normaliza el CSV **antes** de recibir tráfico, así que
+  la primera visita ya encuentra el dataset listo.
+- `gunicorn.conf.py` escucha en la variable `PORT` que publica Render y
+  carga la aplicación una sola vez (`preload_app`), de modo que el CSV
+  vive en el proceso maestro y los trabajadores lo comparten.
+- `.python-version` fija la versión de Python; Render la lee en el build.
+
+### Sobre los recursos
+
+El DataFrame procesado ocupa alrededor de 250 MB. El plan **free** de
+Render da 512 MB y 0,1 CPU, por eso la configuración usa **un solo
+trabajador con hilos** en lugar de varios procesos: dos procesos
+tendrían cada uno su copia del CSV y agotarían la memoria. Si subes a un
+plan con más memoria, aumenta el número de trabajadores añadiendo las
+variables `WEB_CONCURRENCY` y `WEB_THREADS` en el panel de Render, sin
+tocar código.
+
+En el plan free el servicio se duerme tras un rato sin visitas; la
+siguiente petición lo despierta y tarda unos segundos en volver, lo que
+tarda en releer el CSV.
+
+> El conjunto de datos (54 MB) debe viajar en el repositorio. Ya está
+> versionado en `data/`; si alguna vez se ignora en `.gitignore`, Render
+> servirá páginas vacías y `/health` lo reportará.
 
 ---
 
