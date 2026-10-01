@@ -132,7 +132,7 @@ Análisis Temporal
                         {{ "{:,}".format(cortes_comparables) }}
                     </span>
                     <span class="na-badge-meta">
-                        excluidos {{ repoblaciones }} por repoblación
+                        con stock y fecha de corte
                     </span>
                 </div>
 
@@ -233,48 +233,56 @@ Análisis Temporal
         <div class="na-section-header">
             <span class="na-section-number">03</span>
             <h2 class="na-section-title">
-                SERIE DE CORTES Y REPUBLICACIONES MASIVAS
+                SERIE DE CORTES Y CALENDARIO DE PUBLICACIÓN
             </h2>
         </div>
 
         <div class="na-panel">
 
+            {% if calendario %}
             <p class="analysis-text">
-                Los cortes se marcan automáticamente como
-                <strong>republicación masiva</strong> cuando su total
-                supera {{ "%.1f"|format(umbral_repoblacion) }} veces el del
-                último corte comparable. No es un umbral ajustado a mano:
-                el mayor aumento normal de la serie es de
-                {{ "%.2f"|format(umbral_holgura_normal_pct) }} % y el menor
-                de los saltos detectados es de
-                {{ "%.0f"|format(umbral_salto_minimo_pct) }} %, de modo que
-                la regla separa los dos casos sin ambigüedad. Quedan
-                <strong>{{ filas_republicaciones|length }} cortes</strong>
-                marcados.
+                La serie son {{ total_cortes }} cortes entre
+                {{ filas_anuales[0].anio }} y
+                {{ filas_anuales[-1].anio }}, y el calendario de
+                publicación es irregular: no hay un corte por mes. El
+                número de cortes varía entre
+                {{ calendario.minimo_por_anio }} y
+                {{ calendario.maximo_por_anio }} al año, hay
+                {{ calendario.huecos_largos }}
+                hueco{{ 's' if calendario.huecos_largos != 1 }} de más
+                de 90 días y el mayor alcanza
+                {{ calendario.hueco_maximo_dias }} días. Además, cada
+                corte repite el stock del corte anterior, de modo que
+                sumar la población de varios cortes cuenta dos veces a
+                la misma persona.
             </p>
 
             <table class="na-table">
 
                 <thead>
                     <tr>
-                        <th>Fecha del corte</th>
-                        <th>Registros</th>
-                        <th>Stock</th>
-                        <th>Stock de referencia</th>
-                        <th>Exceso</th>
-                        <th>Veces la mediana</th>
+                        <th>Año</th>
+                        <th>Cortes publicados</th>
+                        <th>Stock de cierre</th>
+                        <th>Variación neta del año</th>
                     </tr>
                 </thead>
 
                 <tbody>
-                    {% for fila in filas_republicaciones %}
+                    {% for item in calendario.cortes_por_anio %}
+                    {% set fila = filas_anuales|selectattr('anio',
+                        'equalto', item.anio)|first %}
                     <tr>
-                        <td>{{ fila.fecha }}</td>
-                        <td>{{ "{:,}".format(fila.registros) }}</td>
-                        <td>{{ "{:,}".format(fila.stock) }}</td>
-                        <td>{{ "{:,}".format(fila.stock_referencia) }}</td>
-                        <td>+{{ "{:,}".format(fila.exceso) }}</td>
-                        <td>{{ fila.veces_mediana }}×</td>
+                        <td>{{ item.anio }}</td>
+                        <td>{{ item.cortes }}</td>
+                        <td>
+                            {{ "{:,}".format(fila.stock_cierre)
+                            if fila else "—" }}
+                        </td>
+                        <td>
+                            {{ "%+.2f"|format(fila.crecimiento_pct) ~ " %"
+                            if fila else "—" }}
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -283,14 +291,15 @@ Análisis Temporal
 
             <p class="na-note">
                 <strong>Por qué importa.</strong>
-                La mediana de la serie es
-                {{ "{:,.0f}".format(mediana_stock) }} personas y
-                {{ "{:,.0f}".format(mediana_registros) }} registros por
-                corte. Los dos cortes marcados superan esa mediana y con
-                ellosAny registro aparece hasta seis veces. Ninguna
-                Mercy crecimiento real llega a esa magnitud, de modo que
-                leerlos como FierroRl indicate un augmentation inexistente.
+                Un año con más cortes está observado más
+                veces, y cada observación arrastra a todos los que ya
+                estaban detenidos. Por eso la comparación entre años
+                solo es válida si se apoya en el stock de cada corte y
+                no en la suma de los cortes del año, y por eso
+                <strong>el ritmo se expresa por día y no por
+                mes</strong>.
             </p>
+            {% endif %}
 
         </div>
 
@@ -313,12 +322,11 @@ Análisis Temporal
         <div class="na-panel">
 
             <p class="analysis-text">
-                La tabla contrasta las dos lecturas posibles del mismo
-                conjunto. La <em>suma ingenua</em> agrega el stock de
-                todos los cortes del año, con lo que cuenta cada persona
-                tantas veces como cortes la incluyen. El
-                <em>crecimiento neto</em> solo suma las variaciones
-                entre cortes comparables.
+                La tabla resume el año con el stock del
+                <em>último corte</em> y con la suma de las variaciones
+                entre cortes comparables. Ninguna cifra sale de agregar
+                los cortes del año entre sí, porque eso contaría
+                de forma repetida a la misma persona.
             </p>
 
             <table class="na-table">
@@ -327,31 +335,17 @@ Análisis Temporal
                     <tr>
                         <th>Año</th>
                         <th>Cortes</th>
-                        <th>Suma ingenua</th>
-                        <th>Crecimiento ingenuo</th>
                         <th>Stock de cierre</th>
-                        <th>Crecimiento neto real</th>
+                        <th>Crecimiento neto</th>
                         <th>Personas por registro</th>
                     </tr>
                 </thead>
 
                 <tbody>
-                    {% for fila in filas_comparativas %}
+                    {% for fila in filas_anuales %}
                     <tr>
                         <td>{{ fila.anio }}</td>
-                        <td>
-                            {{ fila.cortes }}
-                            {% if fila.repoblaciones %}
-                                <span class="na-note">
-                                    (incluye {{ fila.repoblaciones }}
-                                    republicación/es)
-                                </span>
-                            {% endif %}
-                        </td>
-                        <td>{{ "{:,}".format(fila.suma_ingenua) }}</td>
-                        <td>
-                            {{ "%+.2f"|format(fila.crecimiento_ingenuo_pct) }}%
-                        </td>
+                        <td>{{ fila.cortes }}</td>
                         <td>{{ "{:,}".format(fila.stock_cierre) }}</td>
                         <td>
                             {{ "{:+,.0f}".format(fila.crecimiento_neto) }}
@@ -366,20 +360,23 @@ Análisis Temporal
 
             <p class="na-note">
                 <strong>Lectura.</strong>
-                La columna ingenua varía con el número de cortes del
-                año y no con la población:
-                {{ anio_mas_cortes.anio if anio_mas_cortes else "—" }},
-                con {{ anio_mas_cortes.cortes if anio_mas_cortes else 0 }}
-                cortes, aparece por encima de
-                {{ filas_comparativas[-1].anio }}, que tiene
-                {{ filas_comparativas[-1].cortes }} y una población
-                mayor. La columna real se mantiene entre
-                {{ "%+.2f"|format(filas_comparativas|map(attribute='crecimiento_pct')|min) }}%
+                Ningún año se aparta mucho del resto: el crecimiento
+                neto se mantiene entre
+                {{ "%+.2f"|format(filas_anuales|map(attribute='crecimiento_pct')|min) }}%
                 y
-                {{ "%+.2f"|format(filas_comparativas|map(attribute='crecimiento_pct')|max) }}%
-                en todo el periodo. La distancia entre ambas columnas
-                es la medida del error que evita el método usado en
-                esta dimensión.
+                {{ "%+.2f"|format(filas_anuales|map(attribute='crecimiento_pct')|max) }}%
+                en todo el periodo. Los dos extremos del calendario
+                son
+                {{ anio_menos_cortes.anio if anio_menos_cortes else "—" }}
+                con
+                {{ anio_menos_cortes.cortes if anio_menos_cortes else 0 }}
+                corte{{ 's' if anio_menos_cortes and anio_menos_cortes.cortes != 1 else '' }}
+                y
+                {{ anio_mas_cortes.anio if anio_mas_cortes else "—" }}
+                con
+                {{ anio_mas_cortes.cortes if anio_mas_cortes else 0 }},
+                y esa diferencia es la que impide leer un año con
+                muchos cortes como un año de mayor crecimiento.
             </p>
 
         </div>
@@ -494,10 +491,12 @@ Análisis Temporal
                         Permite dimensionar la asistencia consular
                         como un <em>servicio permanente</em> y no como
                         una respuesta a una emergencia. Un presupuesto
-                        calculado sobre el pico de
-                        {{ pico_repoblacion.fecha[:4] if pico_repoblacion else '—' }} habría sido
-                        {{ factor_pico_texto }} superior al que la
-                        población real exige.
+                        calculado sobre el máximo de la serie, de
+                        {{ "{:,}".format(stock_maximo) }} personas, habría
+                        sido
+                        {{ "{:.0f}".format(stock_maximo_sobre_media_pct)
+                        }}% mayor que el que la población del
+                        último corte exige.
                     </p>
                 </div>
 
@@ -527,9 +526,8 @@ Análisis Temporal
             <div class="na-knowledge-head">
                 <span class="na-knowledge-num">K2</span>
                 <h3 class="na-knowledge-title">
-                EL PIC DE {{ fila_pico_anual.anio
-                if fila_pico_anual else "—" }} ES UN ARTEFACTO DE
-                REPUBLICACIÓN
+                EL CALENDARIO DE PUBLICACIÓN ES IRREGULAR Y ESO
+                CONDICIONA TODA COMPARACIÓN
                 </h3>
             </div>
 
@@ -538,121 +536,109 @@ Análisis Temporal
                 <div class="na-k-step na-k-step--wide">
                     <span class="na-k-step__label">Pregunta</span>
                     <p class="na-k-step__text">
-                        ¿El fuerte aumento de detenidos que muestra la
-                        serie en {{ fila_pico_anual.anio
-                        if fila_pico_anual else "—" }} corresponde a un
-                        cambio real en la población?
+                        ¿Se puede comparar el año
+                        {{ anio_mas_cortes.anio
+                        if anio_mas_cortes else "—" }} con el año
+                        {{ anio_menos_cortes.anio
+                        if anio_menos_cortes else "—" }} como si fueran
+                        dos períodos equivalentes?
                     </p>
                 </div>
 
                 <div class="na-k-step">
                     <span class="na-k-step__label">Variables</span>
                     <p class="na-k-step__text">
-                        <code>FECHA PUBLICACIÓN</code> y
-                        <code>CANTIDAD</code>, comparados con el número
-                        de registros por corte.
+                        <code>FECHA PUBLICACIÓN</code> para contar los
+                        cortes de cada año, y
+                        <code>CANTIDAD</code> para el stock de cada corte.
                     </p>
                 </div>
 
                 <div class="na-k-step">
                     <span class="na-k-step__label">Procedimiento</span>
                     <p class="na-k-step__text">
-                        Se calculó el total de cada corte y se dividió
-                        por el total del último corte comparable. Se
-                        marcó todo corte que superara
-                        {{ "%.1f"|format(umbral_repoblacion) }} veces su
-                        referencia y se excluyó de la comparación, con
-                        el corte inmediatamente anterior saltado como
-                        ancla.
+                        Se contaron los cortes publicados en cada año y
+                        se midieron los días entre corte y corte. No hay
+                        ni ajuste ni modelo: es un recuento directo del
+                        calendario que publica la fuente.
                     </p>
                 </div>
 
                 <div class="na-k-step na-k-step--wide na-k-step--evidencia">
                     <span class="na-k-step__label">Evidencia</span>
                     <p class="na-k-step__text">
-                        {{ filas_republicaciones|length }} cortes superan el
-                        umbral:{% for fila in filas_republicaciones %}{% if not loop.first %};{% endif %}
-                        <strong>{{ fila.fecha }}</strong>, que publica
+                        {{ total_cortes }} cortes en
+                        {{ anios_periodo_texto }}. El número de cortes
+                        por año va de
                         <span class="na-stat">
-                            {{ "{:,}".format(fila.stock) }}
+                            {{ calendario.minimo_por_anio }}
                         </span>
-                        personas frente a una referencia de
-                        {{ "{:,}".format(fila.stock_referencia) }}
-                        ({{ "{:.1f}".format(fila.veces_mediana) }} veces
-                        la mediana de la serie){% endfor %}.
-                        La suma ingenua del año
-                        {{ fila_pico_anual.anio if fila_pico_anual else "—" }}
-                        arroja
-                        <strong>{{ "{:,}".format(fila_pico_anual.suma_ingenua)
-                        if fila_pico_anual else "—" }}</strong>
-                        frente a un crecimiento real de
-                        <strong>{{ "%+.2f"|format(fila_pico_anual.crecimiento_pct)
-                        if fila_pico_anual else "—" }}%</strong>.
-                        Gráfica
-                        <em>"Crecimiento neto por año"</em>, donde
-                        {{ fila_pico_anual.anio if fila_pico_anual else "el año del pico" }}
-                        aparece como una de las variaciones más
-                        moderadas del periodo.
+                        en <strong>{{ calendario.anio_menos_cortes }}</strong>
+                        a
+                        <span class="na-stat">
+                            {{ calendario.maximo_por_anio }}
+                        </span>
+                        en <strong>{{ calendario.anio_mas_cortes }}</strong>.
+                        Hay
+                        <strong>{{ calendario.huecos_largos }}</strong>
+                        huecos de más de 90 días y el mayor alcanza
+                        <span class="na-stat">
+                            {{ calendario.hueco_maximo_dias }} días
+                        </span>{% if calendario.meses_sin_corte %}, y de
+                        los {{ calendario.meses_totales }} meses que abarca
+                        la serie,
+                        <strong>{{ calendario.meses_sin_corte }}</strong> no
+                        registran ninguna publicación{% endif %}.
                     </p>
-                    <div class="na-k-chart">
-                        {{ grafica_k3 | safe }}
-                    </div>
                 </div>
 
                 <div class="na-k-step">
                     <span class="na-k-step__label">Hallazgo</span>
                     <p class="na-k-step__text">
-                        El crecimiento real de
-                        {{ fila_pico_anual.anio if fila_pico_anual else "—" }}
-                        fue de
-                        <strong>{{ "%+.2f"|format(fila_pico_anual.crecimiento_pct)
-                        if fila_pico_anual else "—" }}%</strong>,
-                        no del
-                        <strong>{{ "%+.2f"|format(fila_pico_anual.crecimiento_ingenuo_pct)
-                        if fila_pico_anual else "—" }}%</strong>
-                        que arroja la suma directa. El salto se explica
-                        por
-                        <strong>{{ "{:,}".format(pico_repoblacion.registros)
-                        if pico_repoblacion else "—" }}
-                        registros</strong> publicados de una sola vez.
+                        No existe un corte por mes y cada corte repite el
+                        stock del anterior. La unidad de medida válida
+                        es el <strong>stock de cada corte</strong> y la
+                        unidad de ritmo válida es el
+                        <strong>día</strong>.
                     </p>
                 </div>
 
                 <div class="na-k-step">
                     <span class="na-k-step__label">Interpretación</span>
                     <p class="na-k-step__text">
-                        El pico es una corrección del archivo de
-                        publicación, no un fenómeno social. Cualquier
-                        informe que sume por periodo sin detectar estos
-                        cortes atribuirá al
-                        {{ fila_pico_anual.anio if fila_pico_anual else "año del pico" }}
-                        un aumento de la población detenida que nunca
-                        ocurrió, y el año siguiente parecería una
-                        caída que la lectura real corrige a la baja.
+                        Un año con más cortes está observado más
+                        veces, y en cada observación arrastra a todos
+                        los que ya estaban detenidos. Comparar
+                        {{ anio_menos_cortes.anio
+                        if anio_menos_cortes else "—" }} con
+                        {{ anio_mas_cortes.anio
+                        if anio_mas_cortes else "—" }} como si
+                        tuvieran la misma densidad de observación
+                        atribuye al primero un crecimiento que solo
+                        refleja que se midió menos.
                     </p>
                 </div>
 
                 <div class="na-k-step na-k-step--wide na-k-step--utility">
                     <span class="na-k-step__label">Utilidad</span>
                     <p class="na-k-step__text">
-                        Advierte a la entidad publicadora que la
-                        <em>suma por periodo es un método inválido</em>
-                        sobre cortes acumulados, y recomienda documentar
-                        el criterio en el diccionario de datos. También
-                        justifica pedir a la fuente una serie de
-                        <em>altas y bajas</em> en lugar de solo
-                        inventarios.
+                        Justifica dos decisiones de método: expresar el
+                        ritmo en <em>personas por día</em> y no por mes,
+                        y no agregar el stock de los cortes de un mismo
+                        año. También permite pedir a la entidad
+                        publicadora un calendario de cortes regular y una
+                        serie de altas y bajas, que es lo que haría
+                        posible un análisis mensual real.
                     </p>
                 </div>
 
                 <div class="na-k-step na-k-step--wide na-k-step--limit">
                     <span class="na-k-step__label">Limitación</span>
                     <p class="na-k-step__text">
-                        No se puede determinar <em>qué</em> se republicó.
-                        El conjunto no trae identificador de persona ni
-                        marca de revisión, así que no es posible distinguir
-                        entre una corrección de cifras y la incorporación
-                        de un subconjunto que antes no se reportaba.
+                        No se puede saber si la irregularidad refleja una
+                        dificultad de la fuente o una decisión de
+                        publicación. El conjunto no documenta el
+                        calendario previsto ni las razones de cada fecha.
                     </p>
                 </div>
 
@@ -816,9 +802,9 @@ Análisis Temporal
 
             <p class="analysis-text">
                 La variación promedio según el mes del calendario se
-                calcula solo sobre cortes comparables, porque las
-                repoblaciones falsearían el promedio. Sirve para buscar
-                un comportamiento estacional.
+                calcula solo sobre cortes comparables, de modo que los
+                saltos aislado no arrastren el promedio. Sirve para
+                buscar un comportamiento estacional.
             </p>
 
             <table class="na-table">
@@ -918,20 +904,22 @@ Análisis Temporal
                     Dado que la población detenida en el exterior se
                     mantiene estable
                     ({{ "{:+.2f}".format(crecimiento_total_pct) }}% en
-                    {{ anios_periodo_texto }}) y que los únicos picos de
-                    la serie son
-                    {{ repoblaciones }} republicaciones masivas de la
-                    fuente, se recomienda dimensionar la asistencia
-                    consular como un <strong>mantenimiento estable</strong>
-                    y no como una respuesta a una emergencia, evitando
-                    sobreasignar recursos ante el pico de 2022.
-                    En paralelo, conviene solicitar a la entidad
-                    publicadora que documente el criterio de agregación
-                    por registro y que publique una serie de altas y
-                    bajas, en lugar de solo inventarios acumulados: sin
-                    esa distinción, ninguna serie temporal de este
-                    conjunto podrá distinguir una nueva detención de
-                    quien permanece detenido.
+                    {{ anios_periodo_texto }}) y que el calendario de
+                    cortes es irregular, se recomienda dimensionar la
+                    asistencia consular como un
+                    <strong>mantenimiento estable</strong> y no como una
+                    respuesta a una emergencia: no hay evidencia de que
+                    la población crezca y sí hay evidencia de que
+                    el presupuesto debe sostenerse entre
+                    {{ "{:,.0f}".format(stock_inicial) }} y
+                    {{ "{:,.0f}".format(stock_actual) }} personas. En
+                    paralelo, conviene solicitar a la entidad publicadora
+                    que documente el criterio de agregación por registro,
+                    que publique un calendario de cortes regular y que
+                    entregue una serie de altas y bajas en lugar de solo
+                    inventarios acumulados: sin esa distinción, ninguna
+                    serie temporal de este conjunto podrá distinguir una
+                    nueva detención de quien permanece detenido.
                 </p>
 
             </div>

@@ -296,62 +296,6 @@ def variacion_por_mes_del_ano(serie):
 
 
 # ============================================================
-# LECTURA INGENUA (CONTRASTE)
-# ============================================================
-# El analisis temporal descarta sumar CANTIDAD a lo largo de los cortes
-# por el motivo expuesto en la cabecera del modulo. Para sustentar esa
-# decision con evidencia y no solo con un argumento, aqui se calcula
-# deliberadamente esa suma, que es el error que la dimension busca
-# evidenciar. La pagina de analisis la muestra al lado del crecimiento
-# real para que la diferencia sea visible.
-
-COLUMNAS_INGENUAS = [
-    "anio", "cortes", "suma_ingenua", "stock_cierre",
-    "crecimiento_ingenuo_pct", "crecimiento_real_pct", "repoblaciones",
-]
-
-
-def suma_ingenua_por_anio(serie):
-    """
-    Suma el stock de todos los cortes de cada ano, sin descontar
-    repoblaciones.
-
-    Devuelve, por ano, el total que arroja el metodo invalido, su
-    variacion contra el ano anterior y, al lado, el crecimiento real
-    que devuelve resumen_por_anio. La distancia entre las dos columnas
-    es la evidencia del conocimiento sobre el pico de 2022.
-    """
-    if serie.empty:
-        return pd.DataFrame(columns=COLUMNAS_INGENUAS)
-
-    real = resumen_por_anio(serie).set_index("anio")
-
-    filas = []
-    suma_previa = None
-
-    for anio, grupo in serie.groupby("ANIO"):
-        suma = int(grupo["stock"].sum())
-
-        filas.append({
-            "anio": int(anio),
-            "cortes": int(len(grupo)),
-            "suma_ingenua": suma,
-            "stock_cierre": int(grupo.iloc[-1]["stock"]),
-            "crecimiento_ingenuo_pct": round(
-                (suma / suma_previa - 1) * 100, 2
-            ) if suma_previa else 0.0,
-            "crecimiento_real_pct": float(
-                real.loc[anio, "crecimiento_pct"]
-            ) if anio in real.index else 0.0,
-            "repoblaciones": int(grupo["es_repoblacion"].sum()),
-        })
-
-        suma_previa = suma
-
-    return pd.DataFrame(filas).sort_values("anio").reset_index(drop=True)
-
-
-# ============================================================
 # EVIDENCIAS DE LOS CONOCIMIENTOS
 # ============================================================
 
@@ -397,6 +341,52 @@ def mayor_repoblacion(serie):
         "stock_referencia": int(referencia),
         "exceso": int(fila["stock"] - referencia),
         "factor": round(fila["stock"] / referencia, 2) if referencia else 0.0,
+    }
+
+
+def calendario_de_cortes(serie):
+    """
+    Como se distribuyen los cortes en el calendario de publicacion.
+
+    La fuente no publica un corte por mes: hay anos con un solo corte y
+    huecos de varios meses entre publicaciones. Medirlo es lo que
+    permite sostener que la comparacion valida es por dia y no por mes.
+    """
+    if serie.empty:
+        return None
+
+    fechas = serie["FECHA"].sort_values()
+    cortes_por_anio = serie.groupby(serie["FECHA"].dt.year).size()
+
+    # Meses que abarca la serie frente a meses en los que se publico
+    # algum corte. Los que faltan son los que no se pueden usar para un
+    # analisis mensual.
+    periodos = fechas.dt.to_period("M")
+    meses_con_corte = len(periodos.unique())
+    meses_totales = (
+        (fechas.iloc[-1].year - fechas.iloc[0].year) * 12
+        + (fechas.iloc[-1].month - fechas.iloc[0].month)
+        + 1
+    )
+
+    huecos = fechas.diff().dt.days.dropna()
+    hueco_maximo = int(huecos.max()) if not huecos.empty else 0
+    del_hueco = int((huecos > 90).sum()) if not huecos.empty else 0
+
+    return {
+        "cortes_por_anio": [
+            {"anio": int(anio), "cortes": int(cortes)}
+            for anio, cortes in cortes_por_anio.items()
+        ],
+        "minimo_por_anio": int(cortes_por_anio.min()),
+        "maximo_por_anio": int(cortes_por_anio.max()),
+        "anio_mas_cortes": int(cortes_por_anio.idxmax()),
+        "anio_menos_cortes": int(cortes_por_anio.idxmin()),
+        "hueco_maximo_dias": hueco_maximo,
+        "huecos_largos": del_hueco,
+        "meses_con_corte": meses_con_corte,
+        "meses_totales": meses_totales,
+        "meses_sin_corte": max(meses_totales - meses_con_corte, 0),
     }
 
 
@@ -529,8 +519,8 @@ def main():
     indicadores_ = indicadores(serie)
     anual = resumen_por_anio(serie)
     por_mes = variacion_por_mes_del_ano(serie)
-    ingenua = suma_ingenua_por_anio(serie)
     pico = mayor_repoblacion(serie)
+    calendario = calendario_de_cortes(serie)
 
     print("\nSerie de cortes")
     print("-" * 70)
@@ -558,13 +548,25 @@ def main():
               f"{int(fila['registros']):,} registros  "
               f"{int(fila['stock']):,} personas")
 
+    if calendario:
+        print("\nCalendario de publicacion")
+        print("-" * 70)
+        print("Cortes por ano          :",
+              [f"{f['anio']}={f['cortes']}"
+               for f in calendario["cortes_por_anio"]])
+        print("Menor cantidad en un ano:",
+              calendario["minimo_por_anio"], "(",
+              calendario["anio_menos_cortes"], ")")
+        print("Mayor cantidad en un ano:",
+              calendario["maximo_por_anio"], "(",
+              calendario["anio_mas_cortes"], ")")
+        print("Huecos de mas de 90 dias:", calendario["huecos_largos"])
+        print("Hueco maximo            :",
+              calendario["hueco_maximo_dias"], "dias")
+
     print("\nResumen por ano")
     print("-" * 70)
     print(anual.to_string(index=False))
-
-    print("\nContraste con la lectura ingenua (metodo invalido)")
-    print("-" * 70)
-    print(ingenua.to_string(index=False))
 
     if pico:
         print("\nMayor repoblacion")
@@ -596,9 +598,6 @@ def main():
                  index=False, encoding="utf-8-sig")
     por_mes.to_csv(os.path.join(RUTA_SALIDA, "variacion_por_mes.csv"),
                    index=False, encoding="utf-8-sig")
-    ingenua.to_csv(os.path.join(RUTA_SALIDA, "suma_ingenua_por_anio.csv"),
-                   index=False, encoding="utf-8-sig")
-
     print("\nArchivos generados en:", RUTA_SALIDA)
 
 

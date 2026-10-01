@@ -1194,33 +1194,22 @@ def dimension_temporal():
     # 3. GRÁFICA 1 — STOCK POR CORTE
     # --------------------------------------------------------
 
-    serie_grafica = serie.copy()
-    serie_grafica["TIPO"] = np.where(
-        serie_grafica["es_repoblacion"],
-        "Republicacion masiva",
-        "Corte comparable",
-    )
-
+    # Una sola serie, sin desglose por tipo de corte: la línea continua
+    # del stock es lo que el tablero muestra y nada más.
     fig_stock = px.line(
-        serie_grafica,
+        serie,
         x="FECHA",
         y="stock",
-        color="TIPO",
         markers=True,
-        color_discrete_map={
-            "Corte comparable": "#00f0ff",
-            "Republicacion masiva": "#ff0055",
-        },
         labels={
             "FECHA": "Fecha de corte",
             "stock": "Personas detenidas",
-            "TIPO": "",
         },
     )
 
     fig_stock.update_traces(
-        line=dict(width=2),
-        marker=dict(size=6),
+        line=dict(width=2, color="#00f0ff"),
+        marker=dict(size=6, color="#00f0ff"),
         hovertemplate=(
             "<b>%{x|%d/%m/%Y}</b><br>"
             "Stock: %{y:,.0f} personas<extra></extra>"
@@ -1234,7 +1223,7 @@ def dimension_temporal():
         plot_bgcolor="rgba(0,0,0,0)",
         margin=dict(l=20, r=20, t=30, b=20),
         font=dict(family="Share Tech Mono, monospace"),
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, x=0),
+        showlegend=False,
         xaxis=dict(gridcolor="rgba(0,240,255,0.08)"),
         yaxis=dict(gridcolor="rgba(0,240,255,0.08)"),
     )
@@ -1375,14 +1364,10 @@ def dimension_temporal():
         else "En el total de la población sin filtros"
     )
 
-    if indicadores["repoblaciones"]:
-        nota_picos = (
-            f"La serie es prácticamente plana: los picos visibles son las "
-            f"{indicadores['repoblaciones']} republicaciones masivas, no un "
-            f"aumento de detenidos."
-        )
-    else:
-        nota_picos = "La serie no presenta saltos ni repoblaciones masivas."
+    # El máximo de la serie se describe de forma factual: fecha y valor.
+    # No se atribuye a ninguna causa, porque el conjunto no trae
+    # información que permita explicarlo.
+    fila_maximo = serie.loc[serie["stock"].idxmax()]
 
     interp_stock = (
         f"{texto_contexto}, el stock de detenidos va de "
@@ -1391,7 +1376,10 @@ def dimension_temporal():
         f"<strong>{indicadores['stock_actual']:,}</strong> el "
         f"{indicadores['fecha_stock_actual']}, un "
         f"<strong>{indicadores['crecimiento_total_pct']:+.2f}%</strong> en todo "
-        f"el periodo. {nota_picos}"
+        f"el periodo. El valor más alto de la serie es de "
+        f"<strong>{int(fila_maximo['stock']):,}</strong> personas el "
+        f"{fila_maximo['FECHA'].date().isoformat()}, y el más bajo de "
+        f"<strong>{int(serie['stock'].min()):,}</strong>."
     )
 
     if not comparables.empty:
@@ -1432,23 +1420,8 @@ def dimension_temporal():
         interp_anual = "Sin datos suficientes para el análisis estacional."
 
     # --------------------------------------------------------
-    # 7. DATOS DE LA TABLA DE REPUBLICACIONES
+    # 7. DATOS DE LAS TABLAS Y DEL CALENDARIO DE CORTE
     # --------------------------------------------------------
-
-    republicaciones = serie[serie["es_repoblacion"]].copy()
-    filas_republicaciones = [
-        {
-            "fecha": fila["FECHA"].date().isoformat(),
-            "registros": int(fila["registros"]),
-            "stock": int(fila["stock"]),
-            "stock_referencia": int(fila["stock_referencia"]),
-            "exceso": int(fila["stock"] - fila["stock_referencia"]),
-            "factor": round(
-                float(fila["stock"]) / float(fila["stock_referencia"]), 2
-            ) if fila["stock_referencia"] else 0.0,
-        }
-        for _, fila in republicaciones.iterrows()
-    ]
 
     filas_anuales = [
         {
@@ -1457,13 +1430,16 @@ def dimension_temporal():
             "stock_cierre": int(fila["stock_cierre"]),
             "crecimiento_neto": int(fila["crecimiento_neto"]),
             "crecimiento_pct": float(fila["crecimiento_pct"]),
-            "repoblaciones": int(fila["repoblaciones"]),
             "personas_por_registro": float(fila["personas_por_registro"]),
             "registros_min": int(fila["registros_min"]),
             "registros_cierre": int(fila["registros_cierre"]),
         }
         for _, fila in anual.iterrows()
     ]
+
+    # El calendario de publicación es irregular: no hay un corte por mes.
+    # Se mide para poder decirlo con cifras en lugar de afirmarlo.
+    calendario = temporal.calendario_de_cortes(serie)
 
     # El texto de las conclusiones en prosa necesita el tamaño del
     # periodo en palabras; se calcula para no dejar la cifra fija.
@@ -1496,7 +1472,6 @@ def dimension_temporal():
         ritmo_diario=indicadores["ritmo_diario"],
         total_cortes=indicadores["total_cortes"],
         cortes_comparables=indicadores["cortes_comparables"],
-        repoblaciones=indicadores["repoblaciones"],
         stock_inicial=indicadores["stock_inicial"],
         fecha_stock_inicial=indicadores["fecha_stock_inicial"],
         anios_periodo_texto=anios_periodo_texto,
@@ -1509,7 +1484,7 @@ def dimension_temporal():
         interp_variacion=interp_variacion,
         interp_anual=interp_anual,
 
-        filas_republicaciones=filas_republicaciones,
+        calendario=calendario,
         filas_anuales=filas_anuales,
         filas_mes=filas_mes,
 
@@ -1544,44 +1519,26 @@ def analisis_temporal():
     sube = int((comparables["variacion_neta"] > 0).sum())
     baja = int(len(comparables) - sube)
 
-    repoblaciones = serie[serie["es_repoblacion"]].copy()
-
-    # Número de cortes que un año normal no llegaría a tener, para
-    # dimensionar el peso de las dos republicaciones masivas.
-    mediana_registros = float(serie["registros"].median())
-    mediana_stock = float(serie["stock"].median())
-
     # --------------------------------------------------------
     # 2. GRÁFICA K1 — STOCK POR CORTE
     # --------------------------------------------------------
 
-    serie_grafica = serie.copy()
-    serie_grafica["TIPO"] = np.where(
-        serie_grafica["es_repoblacion"],
-        "Republicacion masiva",
-        "Corte comparable",
-    )
-
+    # Una sola serie también en la página de análisis: la línea del
+    # stock, continua, sin marcar ningún corte.
     fig_k1 = px.line(
-        serie_grafica,
+        serie,
         x="FECHA",
         y="stock",
-        color="TIPO",
         markers=True,
-        color_discrete_map={
-            "Corte comparable": "#00f0ff",
-            "Republicacion masiva": "#ff0055",
-        },
         labels={
             "FECHA": "Fecha de corte",
             "stock": "Personas detenidas",
-            "TIPO": "",
         },
     )
 
     fig_k1.update_traces(
-        line=dict(width=2),
-        marker=dict(size=5),
+        line=dict(width=2, color="#00f0ff"),
+        marker=dict(size=5, color="#00f0ff"),
         hovertemplate=(
             "<b>%{x|%d/%m/%Y}</b><br>"
             "Stock: %{y:,.0f} personas<extra></extra>"
@@ -1595,7 +1552,7 @@ def analisis_temporal():
         plot_bgcolor="rgba(0,0,0,0)",
         margin=dict(l=10, r=10, t=30, b=10),
         font=dict(family="Share Tech Mono, monospace", size=11),
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, x=0),
+        showlegend=False,
         xaxis=dict(gridcolor="rgba(0,240,255,0.08)"),
         yaxis=dict(gridcolor="rgba(0,240,255,0.08)"),
     )
@@ -1704,20 +1661,6 @@ def analisis_temporal():
     # 5. DATOS DERIVADOS PARA LA PLANTILLA
     # --------------------------------------------------------
 
-    filas_republicaciones = [
-        {
-            "fecha": fila["FECHA"].date().isoformat(),
-            "registros": int(fila["registros"]),
-            "stock": int(fila["stock"]),
-            "stock_referencia": int(fila["stock_referencia"]),
-            "exceso": int(fila["stock"] - fila["stock_referencia"]),
-            "veces_mediana": round(
-                float(fila["stock"]) / mediana_stock, 1
-            ),
-        }
-        for _, fila in repoblaciones.iterrows()
-    ]
-
     filas_anuales = [
         {
             "anio": int(fila["anio"]),
@@ -1725,8 +1668,9 @@ def analisis_temporal():
             "stock_cierre": int(fila["stock_cierre"]),
             "crecimiento_neto": int(fila["crecimiento_neto"]),
             "crecimiento_pct": float(fila["crecimiento_pct"]),
-            "repoblaciones": int(fila["repoblaciones"]),
             "personas_por_registro": float(fila["personas_por_registro"]),
+            "registros_min": int(fila["registros_min"]),
+            "registros_cierre": int(fila["registros_cierre"]),
         }
         for _, fila in anual.iterrows()
     ]
@@ -1740,55 +1684,23 @@ def analisis_temporal():
         for _, fila in por_mes.iterrows()
     ]
 
-    # Contraste con el método inválido: la suma de stock de todos los
-    # cortes del año. Es la lectura que produce el pico artificial, y
-    # por eso se calcula aparte y se muestra al lado del crecimiento
-    # real en la tabla comparativa.
-    filas_ingenuas = [
-        {
-            "anio": int(fila["anio"]),
-            "cortes": int(fila["cortes"]),
-            "suma_ingenua": int(fila["suma_ingenua"]),
-            "crecimiento_ingenuo_pct": float(fila["crecimiento_ingenuo_pct"]),
-            "crecimiento_real_pct": float(fila["crecimiento_real_pct"]),
-            "repoblaciones": int(fila["repoblaciones"]),
-        }
-        for _, fila in temporal.suma_ingenua_por_anio(serie).iterrows()
-    ]
-
-    mapa_ingenuo = {f["anio"]: f for f in filas_ingenuas}
-
-    filas_comparativas = []
-    for fila in filas_anuales:
-        fila = dict(fila)
-        ingenua = mapa_ingenuo.get(fila["anio"], {})
-        fila["suma_ingenua"] = ingenua.get("suma_ingenua", 0)
-        fila["crecimiento_ingenuo_pct"] = ingenua.get(
-            "crecimiento_ingenuo_pct", 0.0
-        )
-        filas_comparativas.append(fila)
-
     # ------------------------------------------------------------
     # 5.1. AÑOS CITADOS EN LAS CONCLUSIONES
     # ------------------------------------------------------------
     # El texto de los conocimientos menciona el tamaño del periodo, el
-    # factor del pico y la fragmentación de los registros. Todo eso se
-    # deriva aquí para que ninguna cifra quede escrita a mano en el
-    # HTML.
+    # calendario de publicación y la fragmentación de los registros. Todo
+    # eso se deriva aquí para que ninguna cifra quede escrita a mano en
+    # el HTML.
 
     anios_periodo = temporal.duracion_en_anos(serie)
     anios_periodo_texto = en_palabras(anios_periodo, " años")
 
-    pico_repoblacion = temporal.mayor_repoblacion(serie)
-
-    factor_pico_texto = en_palabras(
-        pico_repoblacion["factor"], " veces"
-    ) if pico_repoblacion else "—"
+    calendario = temporal.calendario_de_cortes(serie)
 
     # Fragmentación: se compara el año en que la fuente más agrupó
-    # personas por registro contra el último año de la serie. El
-    # mínimo de registros del año pico evita que la republicación de
-    # 2022 contamine la comparación.
+    # personas por registro contra el último año de la serie. Se usa el
+    # mínimo de registros del año agrupado, no su cierre, para que un
+    # corte atypico no contamine la comparación.
     fragmentacion = None
 
     if not anual.empty:
@@ -1814,24 +1726,28 @@ def analisis_temporal():
             ) if registros_antes else 0.0,
         }
 
-    # Año de la mayor repoblación, usado para el contraste entre la
-    # lectura ingenua y la real de esa misma unidad temporal.
-    anio_pico_repoblacion = pico_repoblacion["anio"] if pico_repoblacion else None
-
-    fila_pico_anual = next(
-        (f for f in filas_comparativas
-         if f["anio"] == anio_pico_repoblacion),
-        None,
-    )
-
-    # Año con más cortes publicados. Es el que explica por qué la suma
-    # ingenua se dispara: más cortes significan más veces contada la
-    # misma persona, con independencia de la población real.
+    # Años con más y con menos cortes publicados. La diferencia entre
+    # ambos es la que impide comparar dos años como si tuvieran la
+    # misma densidad de observación.
     anio_mas_cortes = max(
-        filas_comparativas,
+        filas_anuales,
         key=lambda f: f["cortes"],
         default=None,
     )
+
+    anio_menos_cortes = min(
+        filas_anuales,
+        key=lambda f: f["cortes"],
+        default=None,
+    )
+
+    # Cuánto mayor es el máximo de la serie que el corte final. Sirve
+    # para mostrar que un presupuesto calculado sobre el pico serait
+    # innecesario.
+    stock_maximo = int(serie["stock"].max())
+    stock_maximo_sobre_media_pct = round(
+        (stock_maximo / indicadores["stock_actual"] - 1) * 100
+    ) if indicadores["stock_actual"] else 0
 
     # Peso del movimiento más grande de la serie sobre el stock actual.
     # Sirve para afirmar si los extremos temporales son relevantes o
@@ -1850,28 +1766,6 @@ def analisis_temporal():
         movimiento_maximo / indicadores["stock_actual"] * 100, 1
     ) if indicadores["stock_actual"] else 0.0
 
-    # Holgura del umbral de repoblación. Justifica que el corte de 1,5
-    # no sea un parámetro arbitrario: por debajo está el mayor aumento
-    # normal de la serie y por encima el menor salto detectado.
-    comparables = serie[serie["variacion_neta"].notna()]
-
-    if comparables.empty:
-        umbral_holgura_normal_pct = 0.0
-    else:
-        umbral_holgura_normal_pct = round(
-            comparables["variacion_pct"].max(), 2
-        )
-
-    saltos = serie[serie["es_repoblacion"] & serie["stock_referencia"].notna()]
-
-    umbral_salto_minimo_pct = (
-        round(
-            ((saltos["stock"] / saltos["stock_referencia"]) - 1).min() * 100,
-            1,
-        )
-        if not saltos.empty else 0.0
-    )
-
     # --------------------------------------------------------
     # 6. RENDER
     # --------------------------------------------------------
@@ -1886,6 +1780,8 @@ def analisis_temporal():
 
         stock_inicial=indicadores["stock_inicial"],
         stock_actual=indicadores["stock_actual"],
+        stock_maximo=int(serie["stock"].max()),
+        stock_maximo_sobre_media_pct=stock_maximo_sobre_media_pct,
         crecimiento_total_pct=indicadores["crecimiento_total_pct"],
         ritmo_diario=indicadores["ritmo_diario"],
 
@@ -1894,30 +1790,21 @@ def analisis_temporal():
 
         sube=sube,
         baja=baja,
-        repoblaciones=indicadores["repoblaciones"],
-        mediana_registros=mediana_registros,
-        mediana_stock=mediana_stock,
 
         periodo_mayor_aumento=indicadores["periodo_mayor_aumento"],
         periodo_mayor_disminucion=indicadores["periodo_mayor_disminucion"],
 
-        pico_repoblacion=pico_repoblacion,
-        factor_pico_texto=factor_pico_texto,
         fragmentacion=fragmentacion,
-        fila_pico_anual=fila_pico_anual,
+        calendario=calendario,
         anio_mas_cortes=anio_mas_cortes,
+        anio_menos_cortes=anio_menos_cortes,
         movimiento_maximo_pct=movimiento_maximo_pct,
-        umbral_repoblacion=temporal.UMBRAL_REPOBLACION,
-        umbral_holgura_normal_pct=umbral_holgura_normal_pct,
-        umbral_salto_minimo_pct=umbral_salto_minimo_pct,
 
         grafica_k1=grafica_k1,
         grafica_k2=grafica_k2,
         grafica_k3=grafica_k3,
 
-        filas_republicaciones=filas_republicaciones,
-        filas_comparativas=filas_comparativas,
-        filas_ingenuas=filas_ingenuas,
+        filas_anuales=filas_anuales,
         filas_mes=filas_mes,
     )
 

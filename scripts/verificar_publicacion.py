@@ -1,22 +1,24 @@
 """
-Verificacion de la aplicacion ya publicada.
+Verificacion de la aplicacion en ejecucion.
 
-Este script es el control de calidad del despliegue. Antes de dar por
-terminada la publicacion hay que confirmar, contra la URL real y no solo
-en local, que cada pagina responde, que el conjunto de datos viaja en la
-imagen y que los recursos estaticos se sirven. Un despliegue puede
-arrancar sin error y aun asi servir paginas en blanco si una plantilla
-falta o si el CSV no subio con el codigo.
+Este script es el control de calidad de la entrega. Confirma que cada
+pagina responde, que el conjunto de datos esta cargado y que los recursos
+estaticos se sirven. Una aplicacion puede arrancar sin error y aun asi
+servir paginas en blanco si una plantilla falta o si el CSV no esta en su
+sitio.
 
 Uso:
 
+    # Con la aplicacion ya corriendo (python app.py)
     python scripts/verificar_publicacion.py
-    python scripts/verificar_publicacion.py https://mi-app.onrender.com
     python scripts/verificar_publicacion.py --riguroso
 
-Sin argumentos levanta la aplicacion en local y la revisa, de modo que
-sirve tambien como prueba antes de publicar. Con una URL como argumento
-revisa la version desplegada, que es la que se debe entregar al equipo.
+    # Contra otra instancia
+    python scripts/verificar_publicacion.py http://127.0.0.1:5000
+    python scripts/verificar_publicacion.py https://mi-app.ejemplo.com
+
+Sin argumento revisa http://127.0.0.1:5000, que es donde responde
+`python app.py`. Hay que tener el servidor levantado antes de ejecutarlo.
 
 Salida: 0 si todo esta bien, 1 si hay fallos. Sirve para encadenarlo en
 un pipeline o para dejar constancia del resultado en la bitácora.
@@ -24,7 +26,6 @@ un pipeline o para dejar constancia del resultado en la bitácora.
 
 import argparse
 import json
-import os
 import re
 import sys
 import time
@@ -292,49 +293,6 @@ def verificar_textos_sospechosos(base, rutas):
 
 
 # ============================================================
-# MODO LOCAL
-# ============================================================
-
-def levantar_local():
-    """
-    Levanta la aplicacion con el mismo servidor de produccion y la
-    devuelve en ejecucion. Se usa gunicorn para que la verificacion en
-    local mida lo mismo que va a medir en la plataforma publicada.
-    """
-    import subprocess
-    import threading
-
-    raiz = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    puerto = 5099
-
-    proceso = subprocess.Popen(
-        [sys.executable, "-m", "gunicorn",
-         "--config", "gunicorn.conf.py",
-         "--bind", f"127.0.0.1:{puerto}",
-         "wsgi:app"],
-        cwd=raiz,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-    )
-
-    base = f"http://127.0.0.1:{puerto}"
-
-    for _ in range(60):
-        if proceso.poll() is not None:
-            raise RuntimeError("gunicorn se detuvo al arrancar")
-
-        codigo, _, _ = pedir(base + "/health", tiempo_maximo=5)
-
-        if codigo == 200:
-            return proceso, base
-
-        time.sleep(1)
-
-    proceso.terminate()
-    raise RuntimeError("gunicorn no respondio en 60 segundos")
-
-
-# ============================================================
 # PROGRAMA
 # ============================================================
 
@@ -345,8 +303,11 @@ def main():
     analizador.add_argument(
         "url",
         nargs="?",
-        default=None,
-        help="URL publicada. Sin argumento, se verifica en local.",
+        default="http://127.0.0.1:5000",
+        help=(
+            "Base de la aplicacion en ejecucion. Por defecto "
+            "http://127.0.0.1:5000, donde responde 'python app.py'."
+        ),
     )
     analizador.add_argument(
         "--riguroso",
@@ -373,46 +334,35 @@ def main():
     if omitidas:
         print(f"Rutas omitidas a pedido: {', '.join(sorted(omitidas))}\n")
 
-    if argumentos.url:
-        base = argumentos.url.rstrip("/")
-        proceso = None
-        print(f"Verificando la version publicada en {base}\n")
-    else:
-        proceso, base = levantar_local()
-        print(f"Verificando en local, con gunicorn, en {base}\n")
+    base = argumentos.url.rstrip("/")
+    print(f"Verificando la aplicacion en {base}\n")
 
     fallos = []
 
-    try:
-        print("  Salud del servicio")
-        if argumentos.riguroso or argumentos.url:
-            ok, detalle = verificar_health(base)
-            print(f"    {'OK  ' if ok else 'FALLA'}  {detalle}")
-            if not ok:
-                fallos.append(f"/health: {detalle}")
-        else:
-            codigo, cuerpo, _ = pedir(base + "/health")
-            ok = codigo == 200
-            print(f"    {'OK  ' if ok else 'FALLA'}  HTTP {codigo}")
-            if not ok:
-                fallos.append(f"/health: HTTP {codigo}")
+    print("  Salud del servicio")
+    if argumentos.riguroso:
+        ok, detalle = verificar_health(base)
+        print(f"    {'OK  ' if ok else 'FALLA'}  {detalle}")
+        if not ok:
+            fallos.append(f"/health: {detalle}")
+    else:
+        codigo, cuerpo, _ = pedir(base + "/health")
+        ok = codigo == 200
+        print(f"    {'OK  ' if ok else 'FALLA'}  HTTP {codigo}")
+        if not ok:
+            fallos.append(f"/health: HTTP {codigo}")
 
-        print("\n  Paginas")
-        fallos += verificar_paginas(base, rutas)
+    print("\n  Paginas")
+    fallos += verificar_paginas(base, rutas)
 
-        print("\n  Recursos estaticos")
-        fallos += verificar_estaticos(base, estaticos)
+    print("\n  Recursos estaticos")
+    fallos += verificar_estaticos(base, estaticos)
 
-        print("\n  Redirecciones del menu")
-        fallos += verificar_redirecciones(base)
+    print("\n  Redirecciones del menu")
+    fallos += verificar_redirecciones(base)
 
-        print("\n  Integridad del texto")
-        fallos += verificar_textos_sospechosos(base, rutas)
-
-    finally:
-        if proceso is not None:
-            proceso.terminate()
-            proceso.wait(timeout=15)
+    print("\n  Integridad del texto")
+    fallos += verificar_textos_sospechosos(base, rutas)
 
     print()
     print("=" * 62)
@@ -421,12 +371,12 @@ def main():
         print(f"RESULTADO: {len(fallos)} problema(s) encontrado(s)\n")
         for fallo in fallos:
             print(f"  - {fallo}")
-        print("\nLa publicacion no debe darse por terminada hasta "
+        print("\nLa entrega no debe darse por terminada hasta "
               "que esta lista salga vacia.")
         return 1
 
     print("RESULTADO: todo correcto")
-    print(f"Publicacion verificada en {base}")
+    print(f"Aplicacion verificada en {base}")
     return 0
 
 

@@ -452,80 +452,6 @@ Dimensión Temporal
         </div>
 
 
-        <!-- ==============================================
-             TABLA DE REPUBLICACIONES MASIVAS
-        =============================================== -->
-
-        {% if filas_republicaciones %}
-
-        <div class="cyber-panel chart-panel">
-
-            <h3 class="panel-title">
-                CORTES EXCLUIDOS COMO REPUBLICACIONES MASIVAS
-            </h3>
-
-            <div class="relational-table-wrap"
-                 style="overflow-x: auto;">
-
-                <table class="relational-table"
-                       style="width: 100%; border-collapse: collapse;">
-
-                    <thead>
-                        <tr>
-                            <th style="padding: 9px 11px;
-                                       text-align: left;">Fecha</th>
-                            <th style="padding: 9px 11px;
-                                       text-align: left;">Registros</th>
-                            <th style="padding: 9px 11px;
-                                       text-align: left;">Stock</th>
-                            <th style="padding: 9px 11px;
-                                       text-align: left;">
-                                Exceso sobre la referencia
-                            </th>
-                        </tr>
-                    </thead>
-
-                    <tbody>
-                        {% for fila in filas_republicaciones %}
-                        <tr>
-                            <td style="padding: 9px 11px;">
-                                {{ fila.fecha }}
-                            </td>
-                            <td style="padding: 9px 11px;">
-                                {{ "{:,}".format(fila.registros) }}
-                            </td>
-                            <td style="padding: 9px 11px;">
-                                {{ "{:,}".format(fila.stock) }}
-                            </td>
-                            <td style="padding: 9px 11px;">
-                                {{ "+{:,}".format(fila.exceso) }}
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-
-                </table>
-
-            </div>
-
-            <p style="line-height: 1.65;">
-                Estos cortes superan 1,5 veces el total del corte
-                comparable anterior. El mayor aumento normal de la
-                serie es de
-                <strong>{{ "%+.2f"|format(periodo_mayor_aumento.variacion_pct)
-                if periodo_mayor_aumento else "—" }}%</strong>,
-                así que un salto de esta magnitud
-                corresponde a una republicación del archivo y no a
-                un aumento real de detenidos.
-            </p>
-
-        </div>
-
-        {% endif %}
-
-
-        <!-- ==============================================
-             DETALLE POR AÑO
         =============================================== -->
 
         <div class="cyber-panel chart-panel">
@@ -567,12 +493,6 @@ Dimensión Temporal
                             </td>
                             <td style="padding: 9px 11px;">
                                 {{ fila.cortes }}
-                                {% if fila.repoblaciones %}
-                                    <span class="warning">
-                                        (incluye {{ fila.repoblaciones }}
-                                        republicación/es)
-                                    </span>
-                                {% endif %}
                             </td>
                             <td style="padding: 9px 11px;">
                                 {{ "{:,}".format(fila.stock_cierre) }}
@@ -637,25 +557,25 @@ Dimensión Temporal
             </span>
 
             <p>
-                {% set marcadas = filas_republicaciones[:2] %}
-                {% set plural = marcadas|length != 1 %}
-
-                Los picos de la serie son
-                <strong>artefactos de republicación</strong>, no un
-                aumento real de detenidos.
-                {% if marcadas %}
-                    {{ marcadas|length }}
-                    corte{{ 's' if plural }}
-                    ({{ marcadas|map(attribute='fecha')|join(' y ') }})
-                    supera{{ 'n' if plural }} 1,5 veces el total del
-                    corte comparable anterior. Leído{{ 's' if plural }}
-                    como crecimiento, sugeriría{{ 'n' if plural }} un
-                    aumento de la población detenida en
-                    {{ marcadas[0].fecha[:4] }} que nunca ocurrió.
+                {% if calendario %}
+                    El calendario de publicación es
+                    <strong>irregular</strong>: no hay un corte por mes.
+                    En {{ calendario.anio_menos_cortes }} se publicó
+                    {{ calendario.minimo_por_anio }} corte{{ 's' if
+                    calendario.minimo_por_anio != 1 }} y en
+                    {{ calendario.anio_mas_cortes }},
+                    {{ calendario.maximo_por_anio }}; además hay
+                    {{ calendario.huecos_largos }} hueco{{ 's' if
+                    calendario.huecos_largos != 1 }} de más de 90 días
+                    y el mayor dura
+                    <strong>{{ calendario.hueco_maximo_dias }} días</strong>.
+                    Por eso la comparación válida de esta dimensión
+                    se expresa <strong>por día y no por mes</strong>, y
+                    dos años con distinto número de cortes no son
+                    directamente comparables.
                 {% else %}
-                    Con los filtros seleccionados no se detecta
-                    ninguna republicación masiva: ningún corte
-                    supera 1,5 veces el total del comparable anterior.
+                    No hay cortes suficientes para medir la regularidad
+                    del calendario de publicación.
                 {% endif %}
             </p>
 
@@ -694,10 +614,10 @@ Dimensión Temporal
                 El conjunto no trae la <em>fecha de la detención</em>,
                 solo la del corte, por lo que no es posible medir
                 cuántos eventos de detención ocurrieron por mes ni
-                establecer <em>estacionalidad</em> real. Además el
-                calendario de publicación es irregular: hay años con
-                un solo corte y huecos de hasta seis meses, de modo que
-                la variación se expresa por día y no por mes.
+                establecer <em>estacionalidad</em> real. Además cada
+                corte repite el stock anterior, así que el ritmo diario
+                es una <strong>variación neta</strong> del stock y no
+                un conteo de ingresos y salidas.
             </p>
 
         </div>
@@ -713,11 +633,12 @@ Dimensión Temporal
                 Dado que la población detenida es estable y no crece,
                 la asignación de recursos de asistencia consular
                 debe tratarse como un <strong>mantenimiento estable</strong>
-                y no como una respuesta a una emergencia. En cambio,
-                los procesos internos de la entidad publicadora deben
-                revisarse: las republicaciones masivas obligan a
-                corregir el archivo y generan picos engañosos en
-                cualquier análisis que sume por periodo.
+                y no como una respuesta a una emergencia. En paralelo,
+                conviene pedir a la entidad publicadora un
+                <strong>calendario de cortes regular</strong> y una serie
+                de altas y bajas: hoy un año con un solo corte y otro
+                con doce no se pueden comparar, y no se puede distinguir
+                una nueva detención de quien permanece detenido.
             </p>
 
         </div>
