@@ -9,6 +9,7 @@ import unicodedata
 
 from src import analisis_temporal as temporal
 from src import dimension_territorial as territorial
+from src import analisis_territorial as analisis_terr
 
 
 app = Flask(__name__)
@@ -1165,6 +1166,24 @@ def dimension_territorial():
     return render_template(
         'dim_2.html',
         titulo="Dimensión Territorial",
+        # dim_2.html solo muestra el botón "VER ANÁLISIS COMPLETO" si
+        # recibe esta URL.
+        analisis_url=url_for('analisis_territorial'),
+        **contexto,
+    )
+
+
+
+@app.route('/analisis-territorial')
+def analisis_territorial():
+
+    contexto = analisis_terr.construir_contexto_analisis(
+        cargar_dataset_procesado()
+    )
+
+    return render_template(
+        'analisis_territorial.html',
+        titulo="Análisis Territorial",
         **contexto,
     )
 
