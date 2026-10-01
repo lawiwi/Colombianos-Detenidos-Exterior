@@ -1,0 +1,441 @@
+{% extends "base.html" %}
+
+{% block title %}
+Análisis — Dimensión Territorial
+{% endblock %}
+
+
+{% block extra_css %}
+
+<link rel="stylesheet"
+      href="{{ url_for(
+          'static',
+          filename='css/style_dashboards.css'
+      ) }}">
+
+<style>
+    /* Estilos propios de la página de análisis territorial.
+       Todo va con prefijo .at- para no chocar con style_dashboards.css */
+
+    .at-wrap {
+        max-width: 1180px;
+        margin: 0 auto;
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+    }
+
+    .at-wrap .kpi-container {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 16px;
+    }
+
+    .at-metodo p,
+    .at-metodo li {
+        color: #d8e2ec;
+        line-height: 1.6;
+    }
+
+    .at-metodo ol {
+        padding-left: 20px;
+        margin: 8px 0 0;
+    }
+
+    .at-metodo li + li {
+        margin-top: 6px;
+    }
+
+    .at-tabla {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 12px;
+        font-size: 0.9rem;
+    }
+
+    .at-tabla th,
+    .at-tabla td {
+        text-align: left;
+        padding: 8px 10px;
+        border-bottom: 1px solid rgba(0, 240, 255, 0.12);
+        color: #d8e2ec;
+        vertical-align: top;
+    }
+
+    .at-tabla th {
+        color: #00f0ff;
+        font-weight: normal;
+        letter-spacing: 0.06em;
+    }
+
+    .at-numero {
+        display: inline-block;
+        color: #ff2bd1;
+        margin-right: 8px;
+    }
+
+    .at-ficha {
+        display: grid;
+        grid-template-columns: 170px 1fr;
+        gap: 10px 18px;
+        margin: 14px 0 6px;
+    }
+
+    .at-ficha dt {
+        color: #00f0ff;
+        font-size: 0.78rem;
+        letter-spacing: 0.08em;
+        padding-top: 2px;
+    }
+
+    .at-ficha dd {
+        margin: 0;
+        color: #d8e2ec;
+        line-height: 1.6;
+    }
+
+    .at-ficha dd em {
+        color: #ff2bd1;
+        font-style: normal;
+    }
+
+    .at-ficha dd strong {
+        color: #ffffff;
+    }
+
+    .at-hallazgo {
+        border-left: 3px solid #ff2bd1;
+        padding-left: 12px;
+    }
+
+    .at-volver {
+        margin-top: 8px;
+    }
+
+    @media (max-width: 720px) {
+        .at-ficha {
+            grid-template-columns: 1fr;
+            gap: 2px;
+        }
+
+        .at-ficha dd {
+            margin-bottom: 10px;
+        }
+    }
+</style>
+
+{% endblock %}
+
+
+{% block content %}
+
+<div class="at-wrap">
+
+
+    <!-- ======================================================
+         ENCABEZADO
+    ======================================================= -->
+
+    <div class="dashboard-header cyber-panel">
+
+        <h1 class="dashboard-main-title">
+            ANÁLISIS — DIMENSIÓN TERRITORIAL
+        </h1>
+
+        <p class="dashboard-question">
+            ¿Cómo se distribuye la población de ciudadanos
+            colombianos detenidos en el exterior y sus principales
+            características entre los territorios disponibles
+            (continente, país de prisión y jurisdicción consular)?
+        </p>
+
+        <a href="{{ url_for('dimension_territorial') }}"
+           class="btn-analysis at-volver">
+
+            <span class="btn-analysis-icon"></span>
+
+            VOLVER AL TABLERO
+
+        </a>
+
+    </div>
+
+
+    <!-- ======================================================
+         INDICADORES DE SÍNTESIS
+    ======================================================= -->
+
+    <div class="kpi-container">
+
+        <div class="cyber-panel kpi-card">
+            <p class="kpi-label">CONCENTRACIÓN TOP 5</p>
+            <h2 class="kpi-value">{{ "%.1f"|format(pct_top5) }}%</h2>
+            <p class="kpi-description">de los detenidos con país identificado</p>
+        </div>
+
+        <div class="cyber-panel kpi-card">
+            <p class="kpi-label">AMÉRICA</p>
+            <h2 class="kpi-value">{{ "%.1f"|format(pct_america) }}%</h2>
+            <p class="kpi-description">participación del continente americano</p>
+        </div>
+
+        <div class="cyber-panel kpi-card">
+            <p class="kpi-label">CONSULADOS DE FRONTERA</p>
+            <h2 class="kpi-value">{{ "%.1f"|format(pct_frontera) }}%</h2>
+            <p class="kpi-description">de la población total en 6 jurisdicciones</p>
+        </div>
+
+        <div class="cyber-panel kpi-card">
+            <p class="kpi-label">COBERTURA CON CONSULADO</p>
+            <h2 class="kpi-value">{{ "%.1f"|format(pct_cobertura_final) }}%</h2>
+            <p class="kpi-description">
+                con país reportado o inferido, frente a
+                {{ "%.1f"|format(100 - pct_sin_pais) }}% solo con el país reportado
+            </p>
+        </div>
+
+    </div>
+
+
+    <!-- ======================================================
+         METODOLOGÍA
+    ======================================================= -->
+
+    <div class="cyber-panel at-metodo">
+
+        <h3 class="panel-title">METODOLOGÍA</h3>
+
+        <p>
+            Fuente: conjunto <em>Colombianos detenidos en el exterior</em>,
+            publicado por la Cancillería de Colombia en datos.gov.co.
+            Se analizan {{ "{:,}".format(total_registros) }} registros de
+            {{ n_cortes }} cortes de publicación ({{ fecha_inicio }} a
+            {{ fecha_fin }}). La suma de CANTIDAD
+            ({{ "{:,}".format(poblacion_total) }}) acumula todos los cortes,
+            por eso los porcentajes se leen como participación promedio en
+            el periodo y no como número de personas distintas.
+        </p>
+
+        <ol>
+            <li>
+                <strong>Normalización del país.</strong> Se corrigen tildes,
+                caracteres dañados (ESPA�A → España) y alias (Federación de
+                Rusia → Rusia) con un catálogo de países. Los valores
+                <em>Desconocido</em> y <em>Extradición / repatriación</em> se
+                separan porque no son territorios.
+            </li>
+            <li>
+                <strong>Continente.</strong> Cada país se asigna a América,
+                Europa, Asia, África u Oceanía desde el mismo catálogo.
+            </li>
+            <li>
+                <strong>Consulado.</strong> Se limpia el prefijo "C.", se
+                unifican variantes del mismo consulado y se separa la
+                Asistencia Central de Bogotá, que no es un territorio en el
+                exterior.
+            </li>
+            <li>
+                <strong>País inferido.</strong> Con los registros que sí traen
+                país se construye la relación consulado → país; si el 95 % o
+                más de la población de un consulado está en un mismo país, ese
+                país se asigna a los registros del consulado que llegaron sin
+                país.
+            </li>
+            <li>
+                <strong>Comprobación.</strong> Cada conocimiento se recalcula
+                con el país inferido, por periodo y sobre el último corte, para
+                verificar que no dependa de los datos faltantes.
+            </li>
+        </ol>
+
+        <table class="at-tabla">
+            <thead>
+                <tr><th>VARIABLE</th><th>USO EN EL ANÁLISIS</th></tr>
+            </thead>
+            <tbody>
+                <tr><td>CANTIDAD</td><td>Personas de cada registro; base de todas las sumas y porcentajes.</td></tr>
+                <tr><td>PAÍS PRISIÓN</td><td>Unidad territorial principal ({{ n_paises }} países con detenidos).</td></tr>
+                <tr><td>CONTINENTE</td><td>Variable derivada del país.</td></tr>
+                <tr><td>CONSULADO</td><td>Jurisdicción que atiende el caso ({{ n_consulados }} consulados); nivel de ciudad y respaldo del país.</td></tr>
+                <tr><td>DELITO</td><td>Perfil penal de cada territorio.</td></tr>
+                <tr><td>FECHA PUBLICACIÓN</td><td>Corte al que pertenece el registro; permite medir la calidad del dato por año.</td></tr>
+            </tbody>
+        </table>
+
+    </div>
+
+
+    <!-- ======================================================
+         CONOCIMIENTOS EVIDENTES
+    ======================================================= -->
+
+    {% for k in conocimientos %}
+
+    <div class="cyber-panel chart-panel">
+
+        <h3 class="panel-title">
+            <span class="at-numero">CONOCIMIENTO {{ k.numero }}</span>
+            {{ k.titulo | upper }}
+        </h3>
+
+        <dl class="at-ficha">
+            <dt>PREGUNTA</dt>       <dd>{{ k.pregunta }}</dd>
+            <dt>VARIABLES</dt>      <dd>{{ k.variables }}</dd>
+            <dt>PROCEDIMIENTO</dt>  <dd>{{ k.procedimiento }}</dd>
+        </dl>
+
+        <div class="plot-container">
+            {{ k.grafica | safe }}
+        </div>
+
+        <dl class="at-ficha">
+            <dt>EVIDENCIA</dt>      <dd>{{ k.evidencia }}</dd>
+            <dt>HALLAZGO</dt>       <dd class="at-hallazgo">{{ k.hallazgo | safe }}</dd>
+            <dt>INTERPRETACIÓN</dt> <dd>{{ k.interpretacion }}</dd>
+            <dt>UTILIDAD</dt>       <dd>{{ k.utilidad }}</dd>
+            <dt>LIMITACIÓN</dt>     <dd>{{ k.limitacion }}</dd>
+        </dl>
+
+    </div>
+
+    {% endfor %}
+
+
+    <!-- ======================================================
+         LIMITACIONES
+    ======================================================= -->
+
+    <div class="cyber-panel">
+
+        <h3 class="panel-title">LIMITACIONES</h3>
+
+        <div class="dashboard-warning">
+            <strong>PAÍS DE PRISIÓN INCOMPLETO</strong>
+            <p>
+                El {{ "%.1f"|format(pct_sin_pais) }}% de la población no tiene
+                país{% if anio_quiebre %} y, desde {{ anio_quiebre }}, la fuente
+                no lo publica{% endif %}. Los porcentajes por país y por
+                continente se calculan sobre la población identificada y se
+                contrastan con el país inferido por el consulado.
+            </p>
+        </div>
+
+        <div class="dashboard-warning">
+            <strong>EL CONSULADO NO ES LA CÁRCEL</strong>
+            <p>
+                El consulado indica la jurisdicción que atiende el caso, no el
+                establecimiento penitenciario. Las columnas LATITUD y LONGITUD
+                corresponden al centroide del país, no a la ciudad del
+                consulado, por lo que no permiten ubicar las cárceles.
+            </p>
+        </div>
+
+        <div class="dashboard-warning">
+            <strong>ACUMULADO DE CORTES</strong>
+            <p>
+                La suma de CANTIDAD repite a una misma persona en cada corte en
+                que aparece. Los porcentajes son válidos para comparar
+                territorios, pero el total no es el número de personas
+                distintas.
+            </p>
+        </div>
+
+    </div>
+
+
+    <!-- ======================================================
+         DECISIONES SUSTENTADAS
+    ======================================================= -->
+
+    <div class="cyber-panel">
+
+        <h3 class="panel-title">DECISIONES SUSTENTADAS</h3>
+
+        <div class="dashboard-decision">
+            <strong>1. FOCALIZAR LA CAPACIDAD CONSULAR</strong>
+            <p>
+                <em>Sustento:</em> {{ top_paises }} reúnen el
+                {{ "%.1f"|format(pct_top5) }}% de los detenidos con país
+                identificado. <em>Decisión:</em> reforzar abogados y visitas
+                carcelarias en los consulados de mayor carga
+                ({{ top_consulados }}) y priorizar convenios de traslado con
+                esos países.
+            </p>
+        </div>
+
+        <div class="dashboard-decision">
+            <strong>2. PLAN ESPECÍFICO PARA LA FRONTERA</strong>
+            <p>
+                <em>Sustento:</em> los consulados de {{ consulados_frontera }}
+                atienden el {{ "%.1f"|format(pct_frontera) }}% de la población,
+                con una carga comparable a la de grandes capitales.
+                <em>Decisión:</em> asignar personal y defensoría a estos
+                consulados según su carga real y no según el tamaño de la
+                ciudad, en coordinación con las autoridades locales.
+            </p>
+        </div>
+
+        <div class="dashboard-decision">
+            <strong>3. PREVENCIÓN DIFERENCIADA POR TERRITORIO</strong>
+            <p>
+                <em>Sustento:</em> el delito dominante cambia según el país.
+                <em>Decisión:</em> campañas y defensa técnica en delitos de
+                drogas para {{ paises_narco }}{% if paises_robo %}, y en
+                delitos contra el patrimonio para {{ paises_robo }}{% endif %}.
+            </p>
+        </div>
+
+        <div class="dashboard-decision">
+            <strong>4. RECUPERAR EL DATO TERRITORIAL</strong>
+            <p>
+                <em>Sustento:</em> el país de prisión dejó de publicarse
+                {% if anio_quiebre %}en {{ anio_quiebre }}{% endif %}, pero el
+                consulado permite reconstruirlo para el
+                {{ "%.1f"|format(pct_cobertura_final) }}% de la población.
+                <em>Decisión:</em> solicitar a la Cancillería que vuelva a
+                publicar PAÍS PRISIÓN y, mientras tanto, usar el consulado como
+                respaldo en los tableros.
+            </p>
+        </div>
+
+    </div>
+
+</div>
+
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+
+    const elements = document.querySelectorAll('.kpi-card, .chart-panel');
+
+    if (!('IntersectionObserver' in window)) {
+        elements.forEach(function (el) { el.classList.add('is-visible'); });
+        return;
+    }
+
+    const observer = new IntersectionObserver(
+        function (entries) {
+            entries.forEach(function (entry) {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('is-visible');
+                    observer.unobserve(entry.target);
+
+                    /* Plotly calcula mal el ancho si la gráfica
+                       estaba oculta: se fuerza un resize */
+                    if (window.Plotly) {
+                        entry.target
+                            .querySelectorAll('.plotly-graph-div')
+                            .forEach(function (g) { Plotly.Plots.resize(g); });
+                    }
+                }
+            });
+        },
+        { threshold: 0.10, rootMargin: '0px 0px -30px 0px' }
+    );
+
+    elements.forEach(function (el) { observer.observe(el); });
+
+});
+</script>
+
+{% endblock %}
