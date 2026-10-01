@@ -599,8 +599,8 @@ def dimension_4():
 # abre el tablero en la revisión.
 #
 # Por defecto es barata: solo mira el archivo en disco. Con
-# /health?carga=1 additionally lee el CSV y construye la serie
-# temporal, que es el cálculo real de todas las páginas.
+# /health?carga=1 además lee el CSV y construye la serie temporal,
+# que es el cálculo real de todas las páginas.
 # ============================================================
 
 @app.route('/health')
