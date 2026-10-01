@@ -8,6 +8,7 @@ import re
 import unicodedata
 
 from src import analisis_temporal as temporal
+from src import dimension_territorial as territorial
 
 
 app = Flask(__name__)
@@ -596,7 +597,7 @@ def dimension_1():
 
 @app.route('/dimension-2')
 def dimension_2():
-    return render_template('dim_2.html', titulo="Dimensión 2")
+    return redirect(url_for('dimension_territorial'))
 
 
 @app.route('/dimension-3')
@@ -1141,6 +1142,30 @@ def analisis_poblacional():
         grafica_k1=grafica_k1,
         grafica_k2=grafica_k2,
         grafica_k3=grafica_k3,
+    )
+
+
+# ============================================================
+# DIMENSIÓN TERRITORIAL
+# ------------------------------------------------------------
+# La lógica (normalización de países, continentes, consulados y
+# gráficas) está en src/dimension_territorial.py. Se reutiliza el
+# dataset ya procesado y cacheado, igual que en las otras dimensiones.
+# ============================================================
+
+@app.route('/dimension-territorial')
+def dimension_territorial():
+
+    contexto = territorial.construir_contexto_territorial(
+        cargar_dataset_procesado(),
+        continente=request.args.get("continente", "").strip(),
+        delito=request.args.get("delito", "").strip(),
+    )
+
+    return render_template(
+        'dim_2.html',
+        titulo="Dimensión Territorial",
+        **contexto,
     )
 
 
