@@ -141,7 +141,9 @@ ritmo diario promedio.
 **Visualizaciones:** stock por corte, variación respecto al corte
 comparable anterior y cierre y crecimiento neto por año.
 
-**Filtros:** país de prisión y situación jurídica.
+**Filtros:** rango de años del corte. La dimensión temporal no filtra
+por variables poblacionales (país, situación jurídica); su filtro es su
+propia variable de tiempo.
 
 **Conocimientos evidentes:**
 

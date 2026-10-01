@@ -55,22 +55,12 @@ Dimensión Temporal
 
 <div class="cyber-panel dashboard-warning" style="margin-bottom: 22px;">
 
-    <strong>SIN REGISTROS PARA LOS FILTROS SELECCIONADOS</strong>
+    <strong>SIN CORTES EN EL RANGO DE AÑOS SELECCIONADO</strong>
 
     <p style="margin-top: 8px; line-height: 1.65;">
-        La combinación de
-        {% if pais_seleccionado %}
-            país <em>{{ pais_seleccionado }}</em>
-        {% endif %}
-        {% if pais_seleccionado and situacion_seleccionada %}
-            y
-        {% endif %}
-        {% if situacion_seleccionada %}
-            situación jurídica <em>{{ situacion_seleccionada }}</em>
-        {% endif %}
-        no arroja ningún registro en el conjunto de datos.
-        quite alguno de los filtros del panel izquierdo para
-        continuar.
+        No hay cortes publicados entre
+        <em>{{ anio_desde }}</em> y <em>{{ anio_hasta }}</em>.
+        Ajusta el rango en el panel izquierdo para continuar.
     </p>
 
     <p style="margin-top: 10px;">
@@ -133,22 +123,18 @@ Dimensión Temporal
 
                 <div class="filter-group">
 
-                    <label>PAÍS DE PRISIÓN</label>
+                    <label>AÑO DESDE</label>
 
-                    <select name="pais" class="cyber-input">
+                    <select name="anio_desde" class="cyber-input">
 
-                        <option value="">
-                            TODOS LOS PAÍSES
-                        </option>
+                        {% for anio in anios %}
 
-                        {% for pais in lista_paises %}
-
-                        <option value="{{ pais }}"
-                            {% if pais == pais_seleccionado %}
+                        <option value="{{ anio }}"
+                            {% if anio == anio_desde %}
                             selected
                             {% endif %}>
 
-                            {{ pais }}
+                            {{ anio }}
 
                         </option>
 
@@ -161,22 +147,18 @@ Dimensión Temporal
 
                 <div class="filter-group">
 
-                    <label>SITUACIÓN JURÍDICA</label>
+                    <label>AÑO HASTA</label>
 
-                    <select name="situacion" class="cyber-input">
+                    <select name="anio_hasta" class="cyber-input">
 
-                        <option value="">
-                            TODAS LAS SITUACIONES
-                        </option>
+                        {% for anio in anios %}
 
-                        {% for situacion in lista_situaciones %}
-
-                        <option value="{{ situacion }}"
-                            {% if situacion == situacion_seleccionada %}
+                        <option value="{{ anio }}"
+                            {% if anio == anio_hasta %}
                             selected
                             {% endif %}>
 
-                            {{ situacion }}
+                            {{ anio }}
 
                         </option>
 
@@ -207,23 +189,18 @@ Dimensión Temporal
 
                 <div class="pais-activo">
 
-                    {% if pais_seleccionado %}
-                        <span>{{ pais_seleccionado }}</span>
+                    {% if anio_desde == anio_hasta %}
+                        <span>{{ anio_desde }}</span>
                     {% else %}
                         <span class="pais-todos">
-                            Todos los países
+                            {{ anio_desde }} – {{ anio_hasta }}
                         </span>
                     {% endif %}
 
                 </div>
 
                 <p>
-                    Situación jurídica:
-                    {% if situacion_seleccionada %}
-                        {{ situacion_seleccionada }}
-                    {% else %}
-                        Todas
-                    {% endif %}
+                    Rango de años de la fecha de corte.
                 </p>
 
             </div>
@@ -274,26 +251,13 @@ Dimensión Temporal
             <div class="variable-item-sidebar">
 
                 <span class="variable-name-sidebar">
-                    PAIS PRISIÓN
+                    AÑO DEL CORTE
                 </span>
 
                 <span class="variable-desc-sidebar">
-                    País donde se encuentra recluida la persona.
-                    Se usa como filtro del tablero.
-                </span>
-
-            </div>
-
-
-            <div class="variable-item-sidebar">
-
-                <span class="variable-name-sidebar">
-                    SITUACIÓN JURÍDICA
-                </span>
-
-                <span class="variable-desc-sidebar">
-                    Estado procesal del detenido. Se usa como
-                    segundo filtro del tablero.
+                    Año de la fecha de publicación. El tablero se
+                    filtra por un rango de años; no usa variables de
+                    país ni de situación jurídica.
                 </span>
 
             </div>
@@ -657,10 +621,10 @@ Dimensión Temporal
             </h3>
 
             <p style="line-height: 1.65;">
-                La combinación de filtros seleccionada no
-                deja registros en el conjunto de datos, así que
-                no hay cortes que comparar. Quite alguno de los
-                filtros del panel izquierdo.
+                El rango de años seleccionado no deja cortes
+                en el conjunto de datos, así que no hay serie
+                que comparar. Ajusta el rango en el panel
+                izquierdo.
             </p>
 
             <p style="margin-top: 16px;">
@@ -687,7 +651,7 @@ Dimensión Temporal
 document.addEventListener('DOMContentLoaded', function () {
 
     const elements = document.querySelectorAll(
-        '.na-section, .na-variable-block, .na-list li, .na-knowledge'
+        '.kpi-card, .chart-panel'
     );
 
     if (!('IntersectionObserver' in window)) {
