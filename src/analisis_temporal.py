@@ -469,6 +469,35 @@ def _periodo_extremo(comparables, mayor=True):
 
 
 # ============================================================
+# RECORTE TEMPORAL
+# ============================================================
+
+def anios_disponibles(serie):
+    """Años con al menos un corte, en orden ascendente."""
+    return sorted(int(anio) for anio in serie["ANIO"].dropna().unique())
+
+
+def recortar_por_anio(serie, anio_desde=None, anio_hasta=None):
+    """
+    Recorta la serie a un rango de años, ambos inclusive.
+
+    Se aplica sobre la serie ya construida y no sobre el DataFrame
+    crudo: asi el primer corte del rango conserva la variacion
+    calculada frente al corte anterior, aunque ese corte quede fuera
+    de la ventana elegida.
+    """
+    resultado = serie
+
+    if anio_desde is not None:
+        resultado = resultado[resultado["ANIO"] >= int(anio_desde)]
+
+    if anio_hasta is not None:
+        resultado = resultado[resultado["ANIO"] <= int(anio_hasta)]
+
+    return resultado.reset_index(drop=True)
+
+
+# ============================================================
 # FILTROS
 # ============================================================
 

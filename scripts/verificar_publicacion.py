@@ -59,8 +59,8 @@ RUTAS = [
 
     ("/dimension-temporal", [
         "DIMENSIÓN TEMPORAL", "STOCK EN EL ÚLTIMO CORTE",
-        "RITMO DIARIO PROMEDIO", "PAÍS DE PRISIÓN",
-        "SITUACIÓN JURÍDICA", "APLICAR",
+        "RITMO DIARIO PROMEDIO", "AÑO DESDE", "AÑO HASTA",
+        "FILTROS ACTIVOS", "APLICAR",
         "INTERPRETACIÓN", "CONCLUSIONES",
     ]),
 

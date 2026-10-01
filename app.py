@@ -88,6 +88,26 @@ def en_palabras(numero, sufijo=""):
     return f"{numero:,.0f}{sufijo}"
 
 
+def anio_en_rango(texto, minimo, maximo, por_defecto):
+    """
+    Convierte un año recibido por la URL en un entero válido.
+
+    El filtro del tablero temporal es un rango de años. Si el valor no
+    es numérico o cae fuera de los años con cortes, se ajusta a los
+    límites del conjunto, de modo que un enlace mal formado nunca deje
+    el tablero vacío sin explicación.
+    """
+    if texto is None or str(texto).strip() == "":
+        return por_defecto
+
+    try:
+        anio = int(str(texto).strip())
+    except (TypeError, ValueError):
+        return por_defecto
+
+    return max(minimo, min(maximo, anio))
+
+
 def sin_acentos(texto):
     """Devuelve el texto en minúsculas, sin tildes ni diacríticos."""
     if texto is None:
@@ -1136,47 +1156,47 @@ def analisis_poblacional():
 def dimension_temporal():
 
     # --------------------------------------------------------
-    # 1. FILTROS
+    # 1. FILTRO TEMPORAL (RANGO DE AÑOS)
     # --------------------------------------------------------
 
-    pais_filtro = request.args.get("pais", "").strip()
-    situacion_filtro = request.args.get("situacion", "").strip()
-
-    # Se reutiliza la capa de datos ya normalizada por la dimensión
-    # poblacional. Así los valores de los filtros coinciden con los
-    # de las demás dimensiones y el costo se paga una sola vez por
-    # proceso.
+    # La dimensión temporal se filtra por años, que es su propia
+    # variable. No filtra por país ni por situación jurídica: esos
+    # cortes pertenecen a la dimensión poblacional y aquí solo
+    # añadirían subconjuntos sin aportar nada a la lectura de la
+    # evolución. Se reutiliza la capa de datos ya normalizada, así el
+    # costo de leer el CSV se paga una sola vez por proceso.
     df_base = cargar_dataset_procesado()
 
-    if "lista_situaciones" not in _CACHE_DATASET:
-        _CACHE_DATASET["lista_situaciones"] = sorted(
-            df_base["SITUACION"].dropna().astype(str).unique().tolist()
-        )
+    serie_completa = temporal.serie_temporal(df_base)
+    anios = temporal.anios_disponibles(serie_completa)
 
-    lista_paises = _CACHE_DATASET.get(
-        "lista_paises",
-        sorted(df_base["PAIS"].dropna().astype(str).unique().tolist())
+    anio_min = anios[0]
+    anio_max = anios[-1]
+
+    anio_desde = anio_en_rango(
+        request.args.get("anio_desde"), anio_min, anio_max, anio_min
     )
-    lista_situaciones = _CACHE_DATASET["lista_situaciones"]
+    anio_hasta = anio_en_rango(
+        request.args.get("anio_hasta"), anio_min, anio_max, anio_max
+    )
+
+    if anio_desde > anio_hasta:
+        anio_desde, anio_hasta = anio_hasta, anio_desde
 
     # --------------------------------------------------------
     # 2. SERIE DE CORTES Y EVOLUCIÓN
     # --------------------------------------------------------
 
-    df_filtrado = temporal.filtrar(
-        df_base,
-        pais=pais_filtro,
-        situacion=situacion_filtro,
+    serie = temporal.recortar_por_anio(
+        serie_completa, anio_desde, anio_hasta
     )
-
-    serie = temporal.serie_temporal(df_filtrado)
     indicadores = temporal.indicadores(serie)
     anual = temporal.resumen_por_anio(serie)
     por_mes = temporal.variacion_por_mes_del_ano(serie)
 
-    # Una combinación de filtros puede quedar sin registros. En ese
-    # caso no se construyen las gráficas: se devuelve el tablero con un
-    # aviso para que el usuario revise o quite los filtros.
+    # El rango de años siempre cae dentro de los años con cortes, pero
+    # se conserva la salida por si el conjunto llegara vacío: en ese
+    # caso no se construyen las gráficas y se devuelve el aviso.
     sin_datos = serie.empty
 
     if sin_datos:
@@ -1184,10 +1204,11 @@ def dimension_temporal():
             'dim_3.html',
             titulo="Dimensión Temporal",
             sin_datos=True,
-            lista_paises=lista_paises,
-            lista_situaciones=lista_situaciones,
-            pais_seleccionado=pais_filtro,
-            situacion_seleccionada=situacion_filtro,
+            anios=anios,
+            anio_min=anio_min,
+            anio_max=anio_max,
+            anio_desde=anio_desde,
+            anio_hasta=anio_hasta,
         )
 
     # --------------------------------------------------------
@@ -1353,16 +1374,16 @@ def dimension_temporal():
     # 6. INTERPRETACIONES DINÁMICAS
     # --------------------------------------------------------
 
-    contexto = []
-    if pais_filtro:
-        contexto.append(f"el país <em>{pais_filtro}</em>")
-    if situacion_filtro:
-        contexto.append(f"la situación jurídica <em>{situacion_filtro}</em>")
-    texto_contexto = (
-        "Al filtrar por " + " y ".join(contexto)
-        if contexto
-        else "En el total de la población sin filtros"
-    )
+    # El texto sitúa el rango elegido. Cuando abarca todo el periodo no
+    # se habla de filtro, porque es la lectura por defecto del tablero.
+    if anio_desde == anio_min and anio_hasta == anio_max:
+        texto_contexto = "En todo el periodo"
+    elif anio_desde == anio_hasta:
+        texto_contexto = f"En el año <em>{anio_desde}</em>"
+    else:
+        texto_contexto = (
+            f"En el periodo <em>{anio_desde}–{anio_hasta}</em>"
+        )
 
     # El máximo de la serie se describe de forma factual: fecha y valor.
     # No se atribuye a ninguna causa, porque el conjunto no trae
@@ -1488,10 +1509,11 @@ def dimension_temporal():
         filas_anuales=filas_anuales,
         filas_mes=filas_mes,
 
-        lista_paises=lista_paises,
-        lista_situaciones=lista_situaciones,
-        pais_seleccionado=pais_filtro,
-        situacion_seleccionada=situacion_filtro,
+        anios=anios,
+        anio_min=anio_min,
+        anio_max=anio_max,
+        anio_desde=anio_desde,
+        anio_hasta=anio_hasta,
     )
 
 
