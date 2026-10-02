@@ -72,7 +72,17 @@ RUTAS = [
     ]),
 
     ("/dimension-2", []),
-    ("/dimension-4", []),
+    ("/dimension-4", [
+        "Tablero de Análisis Relacional",
+        "VER ANÁLISIS COMPLETO",
+    ]),
+
+    ("/analisis-relacional", [
+        "ANÁLISIS RELACIONAL Y MULTIVARIADO DE LAS DETENCIONES",
+        "METODOLOGÍA",
+        "ANÁLISIS POR VARIABLES PRINCIPALES",
+        "TRES CONOCIMIENTOS EVIDENTES",
+    ]),
 ]
 
 # Rutas de recursos estaticos. Si el proveedor no sirve /static, las

@@ -259,23 +259,14 @@ def _clasificar_pais(valor):
     return (clave.title(), 'Otro', 'País')
 
 
-# Variantes del mismo consulado que llegan escritas distinto en el CSV
-# (carácter dañado o prefijo de sección consular).
-CONSULADOS_EQUIVALENTES = {
-    'PUERTO ESPAA': 'PUERTO ESPANA',      # 'PUERTO ESPA�A' sin la Ñ
-    'SC. TEL AVIV': 'TEL AVIV',           # sección consular
-}
-
-
 def _limpiar_consulado(valor):
     clave = normalizar(valor)
-    if not clave or clave in {'DESCONOCIDO', 'DESCONOCIDA', 'SIN INFORMACION'}:
+    if not clave:
         return LABEL_DESCONOCIDO
     if clave == 'BTA. ASISTENCIA':
         return 'Bogota (Asistencia Central)'
     if clave.startswith('C.'):
         clave = clave[2:].strip()
-    clave = CONSULADOS_EQUIVALENTES.get(clave, clave)
     return clave.title()
 
 
