@@ -31,6 +31,7 @@ templates/
   dim_1.html ... dim_4.html   Tablero de cada dimensión
   analisis_poblacional.html   Análisis completo de la dimensión poblacional
   analisis_temporal.html      Análisis completo de la dimensión temporal
+  analisis_relacional.html    Análisis completo de la dimensión relacional
 static/css/                   Hojas de estilo por tipo de página
 scripts/
   verificar_publicacion.py    Revisa que cada ruta y sus recursos respondan

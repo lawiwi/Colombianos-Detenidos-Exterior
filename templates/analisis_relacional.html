@@ -1,0 +1,510 @@
+{% extends "base.html" %}
+
+{% block title %}
+Análisis Relacional
+{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet"
+      href="{{ url_for('static', filename='css/style_analysis.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="na-wrapper">
+
+    <header class="na-hero">
+        <p class="na-kicker">Dimensión Relacional · Análisis Completo</p>
+        <h1 class="na-title">ANÁLISIS RELACIONAL Y MULTIVARIADO DE LAS DETENCIONES</h1>
+        <p class="na-question">
+            ¿Qué relaciones se observan entre el país de prisión, el delito,
+            la situación jurídica, el género y el grupo de edad de los
+            ciudadanos colombianos detenidos en el exterior?
+        </p>
+        <div class="na-meta">
+            <span>Fuente: MinExterior</span>
+            <span>{{ "{:,}".format(total_registros) }} registros</span>
+            <span>{{ "{:,.0f}".format(total) }} personas reportadas</span>
+            <span>Dimensión relacional</span>
+        </div>
+        <a href="{{ url_for('dimension_4') }}" class="na-back-btn">
+            ← VOLVER AL TABLERO
+        </a>
+    </header>
+
+    <!-- ======================================================
+         01 · METODOLOGÍA
+    ======================================================= -->
+
+    <section class="na-section">
+        <div class="na-section-header">
+            <span class="na-section-number">01</span>
+            <h2 class="na-section-title">METODOLOGÍA</h2>
+        </div>
+        <div class="na-panel">
+            <p class="analysis-text">
+                El análisis parte de los {{ "{:,}".format(total_registros) }}
+                registros del conjunto y suma <code>CANTIDAD</code> para
+                estimar el volumen reportado. Se normalizaron país, delito,
+                situación jurídica, género y grupo de edad antes de agrupar,
+                de modo que las variantes de escritura no queden separadas.
+            </p>
+            <p class="analysis-text">
+                Para estudiar relaciones se construyeron cruces descriptivos:
+                país × delito × situación jurídica; país × delito × género ×
+                situación jurídica; y grupo de edad × delito × género. Los
+                gráficos muestran conteos agregados y no tasas, personas
+                únicas ni relaciones causales.
+            </p>
+            <p class="analysis-text">
+                Los países desconocidos se mantienen dentro del total y de
+                los análisis no territoriales. Se excluyen solo de las
+                comparaciones entre países identificados; la proporción sin
+                país reportado se presenta expresamente como limitación de
+                cobertura.
+            </p>
+
+            <div class="na-badges">
+                <div class="na-badge-card is-predom">
+                    <span class="na-badge-label">Personas reportadas</span>
+                    <span class="na-badge-value">{{ "{:,.0f}".format(total) }}</span>
+                    <span class="na-badge-meta">suma de CANTIDAD</span>
+                </div>
+                <div class="na-badge-card">
+                    <span class="na-badge-label">Registros analizados</span>
+                    <span class="na-badge-value">{{ "{:,}".format(total_registros) }}</span>
+                    <span class="na-badge-meta">conjunto completo, sin filtros</span>
+                </div>
+                <div class="na-badge-card is-minor">
+                    <span class="na-badge-label">País sin identificar</span>
+                    <span class="na-badge-value">{{ "%.1f"|format(porcentaje_pais_desconocido) }}%</span>
+                    <span class="na-badge-meta">del volumen reportado</span>
+                </div>
+                <div class="na-badge-card is-predom">
+                    <span class="na-badge-label">Sin definición jurídica</span>
+                    <span class="na-badge-value">{{ "%.1f"|format(porcentaje_sin_definicion) }}%</span>
+                    <span class="na-badge-meta">{{ "{:,.0f}".format(cantidad_sin_definicion) }} en juicio o investigación</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ======================================================
+         02 · VARIABLES Y ALCANCE
+    ======================================================= -->
+
+    <section class="na-section">
+        <div class="na-section-header">
+            <span class="na-section-number">02</span>
+            <h2 class="na-section-title">VARIABLES Y ALCANCE DEL ANÁLISIS</h2>
+        </div>
+        <div class="na-panel">
+            <table class="na-table">
+                <thead>
+                    <tr>
+                        <th>Variable</th>
+                        <th>Tipo</th>
+                        <th>Uso en la dimensión</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for variable, tipo, descripcion in variables %}
+                    <tr>
+                        <td><code>{{ variable }}</code></td>
+                        <td>{{ tipo }}</td>
+                        <td>{{ descripcion }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            <p class="na-note">
+                <strong>Alcance.</strong> La dimensión relaciona variables
+                categóricas con los conteos agregados de
+                <code>CANTIDAD</code>. La unidad de análisis es el registro
+                agregado que publica la fuente; el conjunto no permite
+                reconstruir personas individuales ni comparar riesgos
+                relativos entre países o grupos.
+            </p>
+        </div>
+    </section>
+
+    <!-- ======================================================
+         03 · ANÁLISIS POR VARIABLES PRINCIPALES
+    ======================================================= -->
+
+    <section class="na-section">
+        <div class="na-section-header">
+            <span class="na-section-number">03</span>
+            <h2 class="na-section-title">ANÁLISIS POR VARIABLES PRINCIPALES</h2>
+        </div>
+        <p class="analysis-text" style="margin-bottom: 24px;">
+            Las siguientes distribuciones muestran cada categoría como
+            proporción del volumen total reportado. Se presentan completas
+            para distinguir tanto las categorías predominantes como las
+            categorías con información faltante.
+        </p>
+
+        {% for variable in resumenes_variables %}
+        <div class="na-variable-block">
+            <h3 class="na-variable-title">
+                <span>3.{{ loop.index }}</span>{{ variable.titulo }}
+            </h3>
+            <table class="na-table">
+                <thead>
+                    <tr>
+                        <th>Categoría</th>
+                        <th class="num">Personas reportadas</th>
+                        <th class="pct">Participación del total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for fila in variable.filas %}
+                    <tr>
+                        <td>{{ fila.categoria }}</td>
+                        <td class="num">{{ "{:,.0f}".format(fila.cantidad) }}</td>
+                        <td class="pct">
+                            {{ "%.2f"|format(fila.porcentaje) }} %
+                            <span class="na-bar">
+                                <span style="width: {{ [fila.porcentaje, 100]|min }}%"></span>
+                            </span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            <p class="na-note">{{ variable.nota }}</p>
+        </div>
+        {% endfor %}
+    </section>
+
+    <!-- ======================================================
+         04 · ANÁLISIS MULTIVARIADO
+    ======================================================= -->
+
+    <section class="na-section">
+        <div class="na-section-header">
+            <span class="na-section-number">04</span>
+            <h2 class="na-section-title">ANÁLISIS DE RELACIONES ENTRE VARIABLES</h2>
+        </div>
+
+        <div class="na-variable-block">
+            <h3 class="na-variable-title"><span>4.1</span>PAÍS × DELITO × SITUACIÓN JURÍDICA</h3>
+            <p class="analysis-text">
+                El treemap cruza los países identificados con los delitos y
+                las situaciones jurídicas reportadas. El área representa
+                <code>CANTIDAD</code> y el color corresponde al volumen de
+                cada segmento; el gráfico se limita a los 15 países con
+                mayor cantidad reportada para facilitar la lectura.
+            </p>
+            {% if graficas[0] %}
+            <div class="na-k-chart">{{ graficas[0]|safe }}</div>
+            {% else %}
+            <p class="analysis-text">No hay países identificados para construir este cruce.</p>
+            {% endif %}
+            <p class="na-note">{{ interpretaciones[0] }}</p>
+        </div>
+
+        <div class="na-variable-block">
+            <h3 class="na-variable-title"><span>4.2</span>DELITO × GÉNERO × SITUACIÓN JURÍDICA POR PAÍS</h3>
+            <p class="analysis-text">
+                Las barras apiladas muestran la situación jurídica para los
+                cinco países y ocho delitos de mayor volumen conocido; las
+                facetas separan los resultados por país y género. La selección
+                del subconjunto se hace por cantidad total, no por tasa.
+            </p>
+            {% if graficas[1] %}
+            <div class="na-k-chart">{{ graficas[1]|safe }}</div>
+            {% else %}
+            <p class="analysis-text">No hay combinaciones de país, delito, género y situación jurídica para comparar.</p>
+            {% endif %}
+            <p class="na-note">{{ interpretaciones[1] }}</p>
+        </div>
+
+        <div class="na-variable-block">
+            <h3 class="na-variable-title"><span>4.3</span>GRUPO DE EDAD × DELITO × GÉNERO</h3>
+            <p class="analysis-text">
+                El diagrama de burbujas relaciona grupo de edad, delito y
+                género. El tamaño representa la cantidad reportada y se
+                muestran los 15 delitos de mayor volumen.
+            </p>
+            {% if graficas[2] %}
+            <div class="na-k-chart">{{ graficas[2]|safe }}</div>
+            {% else %}
+            <p class="analysis-text">No hay combinaciones disponibles para esta visualización.</p>
+            {% endif %}
+            <p class="na-note">{{ interpretaciones[2] }}</p>
+        </div>
+    </section>
+
+    <!-- ======================================================
+         05 · POSIBLE DECISIÓN
+    ======================================================= -->
+
+    <section class="na-section">
+        <div class="na-section-header">
+            <span class="na-section-number">05</span>
+            <h2 class="na-section-title">POSIBLE DECISIÓN SUSTENTADA</h2>
+        </div>
+        <div class="na-panel">
+            <p class="analysis-text">
+                La información permite orientar una revisión de la capacidad
+                de asistencia jurídica y consular en los países con mayor
+                volumen conocido, y analizar los casos reportados como
+                <em>en juicio</em> o <em>en investigación</em> para identificar
+                dónde podría ser necesario verificar las necesidades de
+                acompañamiento. El país identificado con mayor volumen es
+                <strong>{{ pais_principal }}</strong>
+                ({{ "{:,.0f}".format(cantidad_pais_principal) }} personas
+                reportadas).
+            </p>
+            <p class="analysis-text">
+                Como primer foco de contraste, narcotráfico suma
+                <strong>{{ "{:,.0f}".format(total_narcotrafico) }}</strong>
+                personas reportadas, de las cuales
+                <strong>{{ "%.1f"|format(porcentaje_narcotrafico_condenado) }}%</strong>
+                aparece bajo la categoría <em>condenado</em>. Estos conteos
+                pueden orientar una revisión operativa, pero no bastan para
+                asignar recursos sin validar cobertura, volumen de casos
+                únicos, normativa y capacidad consular de cada país.
+            </p>
+        </div>
+    </section>
+
+    <!-- ======================================================
+         06 · CONOCIMIENTOS EVIDENTES
+    ======================================================= -->
+
+    <section class="na-section">
+        <div class="na-section-header">
+            <span class="na-section-number">06</span>
+            <h2 class="na-section-title">TRES CONOCIMIENTOS EVIDENTES</h2>
+        </div>
+        <p class="analysis-text" style="margin-bottom: 30px;">
+            Cada conocimiento sigue la estructura de pregunta, variables,
+            procedimiento, evidencia, hallazgo, interpretación, utilidad y
+            limitación. Los valores se calculan a partir del conjunto
+            normalizado completo.
+        </p>
+
+        <article class="na-knowledge" id="k1">
+            <div class="na-knowledge-head">
+                <span class="na-knowledge-num">K1</span>
+                <h3 class="na-knowledge-title">LA COBERTURA TERRITORIAL LIMITA LAS COMPARACIONES ENTRE PAÍSES</h3>
+            </div>
+            <div class="na-knowledge-flow">
+                <div class="na-k-step na-k-step--wide">
+                    <span class="na-k-step__label">Pregunta</span>
+                    <p class="na-k-step__text">¿Cómo se distribuye el volumen reportado entre los países identificados y qué tanto limita la categoría de país desconocido la lectura territorial?</p>
+                </div>
+                <div class="na-k-step">
+                    <span class="na-k-step__label">Variables</span>
+                    <p class="na-k-step__text"><code>PAIS PRISIÓN</code> y <code>CANTIDAD</code>.</p>
+                </div>
+                <div class="na-k-step">
+                    <span class="na-k-step__label">Procedimiento</span>
+                    <p class="na-k-step__text">Agrupar la cantidad reportada por país, ordenar los países conocidos y medir por separado los registros sin país identificable.</p>
+                </div>
+                <div class="na-k-step na-k-step--wide na-k-step--evidencia">
+                    <span class="na-k-step__label">Evidencia</span>
+                    <p class="na-k-step__text">
+                        El país identificado con mayor volumen es
+                        <strong>{{ pais_principal }}</strong>, con
+                        {{ "{:,.0f}".format(cantidad_pais_principal) }}
+                        personas reportadas. La categoría sin país concentra
+                        {{ "%.1f"|format(porcentaje_pais_desconocido) }}% del
+                        total. El treemap presenta los 15 principales países
+                        identificados junto con delito y situación jurídica.
+                    </p>
+                </div>
+                <div class="na-k-step">
+                    <span class="na-k-step__label">Hallazgo</span>
+                    <p class="na-k-step__text">La distribución territorial observada debe leerse en conjunto con la proporción elevada de casos cuya ubicación no está identificada.</p>
+                </div>
+                <div class="na-k-step">
+                    <span class="na-k-step__label">Interpretación</span>
+                    <p class="na-k-step__text">El ranking muestra volumen registrado, no incidencia ni riesgo relativo. La categoría desconocida impide atribuir una parte sustancial del total a un territorio específico.</p>
+                </div>
+                <div class="na-k-step na-k-step--wide na-k-step--utility">
+                    <span class="na-k-step__label">Utilidad</span>
+                    <p class="na-k-step__text">Priorizar la revisión de la calidad del dato territorial y utilizar los rankings como guía descriptiva para verificar capacidad de atención por país.</p>
+                </div>
+                <div class="na-k-step na-k-step--wide na-k-step--limit">
+                    <span class="na-k-step__label">Limitación</span>
+                    <p class="na-k-step__text">No se dispone aquí del denominador de población colombiana residente o viajera por país, ni de datos de casos únicos; por ello no es válido interpretar los conteos como probabilidad de detención.</p>
+                </div>
+            </div>
+        </article>
+
+        <article class="na-knowledge" id="k2">
+            <div class="na-knowledge-head">
+                <span class="na-knowledge-num">K2</span>
+                <h3 class="na-knowledge-title">NARCOTRÁFICO Y SITUACIÓN JURÍDICA CONCENTRAN UNA PARTE IMPORTANTE DE LOS REGISTROS</h3>
+            </div>
+            <div class="na-knowledge-flow">
+                <div class="na-k-step na-k-step--wide">
+                    <span class="na-k-step__label">Pregunta</span>
+                    <p class="na-k-step__text">¿Qué combinación de delito y situación jurídica reúne el mayor volumen y cómo aparece el narcotráfico en la distribución procesal?</p>
+                </div>
+                <div class="na-k-step">
+                    <span class="na-k-step__label">Variables</span>
+                    <p class="na-k-step__text"><code>DELITO</code>, <code>SITUACIÓN JURÍDICA</code> y <code>CANTIDAD</code>.</p>
+                </div>
+                <div class="na-k-step">
+                    <span class="na-k-step__label">Procedimiento</span>
+                    <p class="na-k-step__text">Agrupar por delito y situación jurídica, y calcular dentro del total de narcotráfico la participación de la categoría condenado.</p>
+                </div>
+                <div class="na-k-step na-k-step--wide na-k-step--evidencia">
+                    <span class="na-k-step__label">Evidencia</span>
+                    <p class="na-k-step__text">
+                        La combinación delito-situación de mayor volumen es
+                        <strong>{{ delito_estado_principal }} · {{ situacion_delito_principal }}</strong>
+                        ({{ "{:,.0f}".format(cantidad_delito_estado_principal) }}
+                        personas reportadas). En narcotráfico, la categoría
+                        condenado representa
+                        {{ "%.1f"|format(porcentaje_narcotrafico_condenado) }}%
+                        de {{ "{:,.0f}".format(total_narcotrafico) }}
+                        personas reportadas.
+                    </p>
+                </div>
+                <div class="na-k-step">
+                    <span class="na-k-step__label">Hallazgo</span>
+                    <p class="na-k-step__text">Los conteos muestran una concentración visible en categorías delictivas y procesales específicas; los casos en juicio o investigación representan {{ "%.1f"|format(porcentaje_sin_definicion) }}% del volumen.</p>
+                </div>
+                <div class="na-k-step">
+                    <span class="na-k-step__label">Interpretación</span>
+                    <p class="na-k-step__text">El estado jurídico registrado describe la situación reportada en la fuente. No informa por sí solo duración del proceso, resultado individual ni necesidades jurídicas específicas.</p>
+                </div>
+                <div class="na-k-step na-k-step--wide na-k-step--utility">
+                    <span class="na-k-step__label">Utilidad</span>
+                    <p class="na-k-step__text">Orientar la revisión de protocolos de asistencia jurídica y contrastar si los países con mayor volumen requieren apoyos diferenciados en etapas procesales tempranas.</p>
+                </div>
+                <div class="na-k-step na-k-step--wide na-k-step--limit">
+                    <span class="na-k-step__label">Limitación</span>
+                    <p class="na-k-step__text">Las categorías son agregadas y no incluyen fechas de inicio, cierre o cambios de estado procesal. La comparación no mide duración ni desempeño judicial.</p>
+                </div>
+            </div>
+        </article>
+
+        <article class="na-knowledge" id="k3">
+            <div class="na-knowledge-head">
+                <span class="na-knowledge-num">K3</span>
+                <h3 class="na-knowledge-title">LOS CRUCES DE EDAD Y GÉNERO DESCRIBEN COMPOSICIONES, NO PERFILES CAUSALES</h3>
+            </div>
+            <div class="na-knowledge-flow">
+                <div class="na-k-step na-k-step--wide">
+                    <span class="na-k-step__label">Pregunta</span>
+                    <p class="na-k-step__text">¿Cómo se distribuyen los volúmenes por grupo de edad y delito al diferenciar por género?</p>
+                </div>
+                <div class="na-k-step">
+                    <span class="na-k-step__label">Variables</span>
+                    <p class="na-k-step__text"><code>GRUPO EDAD</code>, <code>DELITO</code>, <code>GÉNERO</code> y <code>CANTIDAD</code>.</p>
+                </div>
+                <div class="na-k-step">
+                    <span class="na-k-step__label">Procedimiento</span>
+                    <p class="na-k-step__text">Agrupar por las tres categorías, sumar cantidad y visualizar los 15 delitos con mayor volumen usando el tamaño de burbuja como magnitud.</p>
+                </div>
+                <div class="na-k-step na-k-step--wide na-k-step--evidencia">
+                    <span class="na-k-step__label">Evidencia</span>
+                    <p class="na-k-step__text">
+                        El grupo de edad con mayor volumen es
+                        <strong>{{ resumenes_variables[4].filas[0].categoria }}</strong>
+                        ({{ "%.1f"|format(resumenes_variables[4].filas[0].porcentaje) }}%
+                        del total); la categoría género más frecuente es
+                        <strong>{{ resumenes_variables[3].filas[0].categoria }}</strong>
+                        ({{ "%.1f"|format(resumenes_variables[3].filas[0].porcentaje) }}%).
+                        La burbuja permite explorar cómo se cruzan estas
+                        dimensiones con los delitos.
+                    </p>
+                </div>
+                <div class="na-k-step">
+                    <span class="na-k-step__label">Hallazgo</span>
+                    <p class="na-k-step__text">Las categorías agregadas permiten identificar las combinaciones de mayor volumen; la información de edad sin reportar permanece visible en la tabla de distribución y restringe la lectura por grupo etario.</p>
+                </div>
+                <div class="na-k-step">
+                    <span class="na-k-step__label">Interpretación</span>
+                    <p class="na-k-step__text">Las diferencias de conteo pueden reflejar composición del registro y calidad de la información; no demuestran que edad o género expliquen el delito ni el hecho de la detención.</p>
+                </div>
+                <div class="na-k-step na-k-step--wide na-k-step--utility">
+                    <span class="na-k-step__label">Utilidad</span>
+                    <p class="na-k-step__text">Usar los cruces para proponer preguntas de seguimiento y comprobar si las rutas de atención consular responden a necesidades diferenciadas, sin dejar de revisar los datos caso a caso.</p>
+                </div>
+                <div class="na-k-step na-k-step--wide na-k-step--limit">
+                    <span class="na-k-step__label">Limitación</span>
+                    <p class="na-k-step__text">No hay información individual ni variables socioeconómicas, migratorias o de contexto que permitan establecer asociaciones causales. Las categorías “sin información” reducen la representatividad de algunos cruces.</p>
+                </div>
+            </div>
+        </article>
+    </section>
+
+    <!-- ======================================================
+         07 · LIMITACIÓN GENERAL
+    ======================================================= -->
+
+    <section class="na-section">
+        <div class="na-section-header">
+            <span class="na-section-number">07</span>
+            <h2 class="na-section-title">LIMITACIÓN GENERAL Y CIERRE</h2>
+        </div>
+        <div class="na-panel">
+            <div class="na-callout">
+                <strong>Limitación del análisis</strong>
+                <p style="margin-top: 8px; line-height: 1.65;">
+                    Los resultados dependen de la calidad y del nivel de
+                    agregación de la fuente. <code>CANTIDAD</code> expresa
+                    personas reportadas por registro y no permite deduplicar
+                    individuos. La falta de país, edad, delito o situación
+                    jurídica limita distintos cruces; además, los conteos
+                    absolutos no están ajustados por población expuesta,
+                    cobertura consular o características de cada sistema
+                    judicial. Por tanto, los hallazgos son descriptivos y no
+                    deben leerse como tasas, probabilidades o explicaciones
+                    causales.
+                </p>
+            </div>
+            <div class="na-panel" style="margin-top: 22px; border-color: rgba(0, 240, 255, 0.45);">
+                <strong>Conclusión</strong>
+                <p style="margin-top: 8px; line-height: 1.65;">
+                    La dimensión relacional permite ver conjuntamente dónde
+                    se reportan los casos, qué delitos y situaciones jurídicas
+                    se registran y cómo se distribuyen por género y edad. Su
+                    principal aporte es organizar evidencia para orientar
+                    revisiones y preguntas de gestión. Para convertir estas
+                    señales en decisiones, es necesario verificar la
+                    integridad de los datos y contrastar los conteos con
+                    información contextual y necesidades consulares reales.
+                </p>
+            </div>
+        </div>
+    </section>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const elements = document.querySelectorAll(
+        '.na-section, .na-variable-block, .na-list li, .na-knowledge'
+    );
+
+    if (!('IntersectionObserver' in window)) {
+        elements.forEach(function (element) {
+            element.classList.add('is-visible');
+        });
+        return;
+    }
+
+    const observer = new IntersectionObserver(
+        function (entries) {
+            entries.forEach(function (entry) {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('is-visible');
+                    observer.unobserve(entry.target);
+                }
+            });
+        },
+        { threshold: 0, rootMargin: '0px 0px 0px 0px' }
+    );
+
+    elements.forEach(function (element) {
+        observer.observe(element);
+    });
+});
+</script>
+{% endblock %}
