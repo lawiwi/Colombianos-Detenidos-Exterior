@@ -9,6 +9,7 @@ import unicodedata
 
 from src import analisis_temporal as temporal
 from src import dimension_territorial as territorial
+from src import analisis_territorial as analisis_terr 
 
 
 app = Flask(__name__)
@@ -759,7 +760,7 @@ def dimension_4():
             f"{combinacion_top['SITUACIÓN JURÍDICA']} "
             f"({formato_numero(combinacion_top['CANTIDAD'])} personas)."
         )
-        graficas.append(figura.to_html(full_html=False, include_plotlyjs=True))
+        graficas.append(figura.to_html(full_html=False, include_plotlyjs=False))
     else:
         interpretacion_1 = "No hay registros para los filtros seleccionados."
         graficas.append("")
@@ -809,7 +810,7 @@ def dimension_4():
             f"país-delito más numerosa de la selección es {pais_top} · {delito_top} "
             f"({formato_numero(top_combinacion.iloc[0])} personas)."
         )
-        graficas.append(figura.to_html(full_html=False, include_plotlyjs=True))
+        graficas.append(figura.to_html(full_html=False, include_plotlyjs=False))
     else:
         interpretacion_2 = "No hay países identificados para comparar con los filtros actuales."
         graficas.append("")
@@ -848,7 +849,7 @@ def dimension_4():
             f"{mayor_burbuja['GÉNERO']} "
             f"({formato_numero(mayor_burbuja['CANTIDAD'])} personas)."
         )
-        graficas.append(figura.to_html(full_html=False, include_plotlyjs=True))
+        graficas.append(figura.to_html(full_html=False, include_plotlyjs=False))
     else:
         interpretacion_3 = "No hay registros para los filtros seleccionados."
         graficas.append("")
@@ -887,7 +888,7 @@ def dimension_4():
         )
         figura.update_xaxes(tickangle=35)
         preparar_figura(figura, 410)
-        grafica_narcotrafico = figura.to_html(full_html=False, include_plotlyjs=True)
+        grafica_narcotrafico = figura.to_html(full_html=False, include_plotlyjs=False)
         tabla_narcotrafico = tabla.sort_values(
             ["PAIS PRISIÓN", "CANTIDAD"], ascending=[True, False]
         ).to_dict("records")
@@ -916,7 +917,7 @@ def dimension_4():
             hovertemplate="<b>%{label}</b><br>Personas: %{value:,.0f}<extra></extra>"
         )
         preparar_figura(figura, 430)
-        grafica_genero = figura.to_html(full_html=False, include_plotlyjs=True)
+        grafica_genero = figura.to_html(full_html=False, include_plotlyjs=False)
     else:
         grafica_genero = ""
 
@@ -954,7 +955,7 @@ def dimension_4():
         )
         figura.update_xaxes(tickangle=35)
         preparar_figura(figura, 400)
-        grafica_raros = figura.to_html(full_html=False, include_plotlyjs=True)
+        grafica_raros = figura.to_html(full_html=False, include_plotlyjs=False)
         tabla_raros = raros_agrupados.nlargest(25, "CANTIDAD").to_dict("records")
     else:
         grafica_raros = ""
@@ -1184,7 +1185,7 @@ def analisis_relacional():
             hovertemplate="<b>%{label}</b><br>Personas reportadas: %{value:,.0f}<extra></extra>",
         )
         preparar_figura(figura, 550)
-        graficas.append(figura.to_html(full_html=False, include_plotlyjs=True))
+        graficas.append(figura.to_html(full_html=False, include_plotlyjs=False))
         interpretaciones.append(
             f"Entre los países identificados, {pais_principal} reúne "
             f"{cantidad_pais_principal:,.0f} personas reportadas "
@@ -1223,7 +1224,7 @@ def analisis_relacional():
         )
         figura.update_xaxes(tickangle=35)
         preparar_figura(figura, 740)
-        graficas.append(figura.to_html(full_html=False, include_plotlyjs=True))
+        graficas.append(figura.to_html(full_html=False, include_plotlyjs=False))
         interpretaciones.append(
             "La comparación se limita a los cinco países y ocho delitos con "
             "mayor volumen conocido; las barras apilan la situación jurídica "
@@ -1260,7 +1261,7 @@ def analisis_relacional():
         figura.update_xaxes(tickangle=35)
         preparar_figura(figura, 500)
         mayor_burbuja = burbujas.nlargest(1, "CANTIDAD").iloc[0]
-        graficas.append(figura.to_html(full_html=False, include_plotlyjs=True))
+        graficas.append(figura.to_html(full_html=False, include_plotlyjs=False))
         interpretaciones.append(
             f"Cada burbuja cruza edad, delito y género; el tamaño refleja "
             f"personas reportadas. La combinación de mayor volumen visible es "
@@ -1535,7 +1536,7 @@ def dimension_poblacional():
 
     grafica_genero = fig_genero.to_html(
         full_html=False,
-        include_plotlyjs=True,
+        include_plotlyjs=False,
         config={"displayModeBar": False}
     )
 
@@ -1577,7 +1578,7 @@ def dimension_poblacional():
 
     grafica_situacion = fig_situacion.to_html(
         full_html=False,
-        include_plotlyjs=True,
+        include_plotlyjs=False,
         config={"displayModeBar": False}
     )
 
@@ -1626,7 +1627,7 @@ def dimension_poblacional():
 
     grafica_delito = fig_delito.to_html(
         full_html=False,
-        include_plotlyjs=True,
+        include_plotlyjs=False,
         config={"displayModeBar": False}
     )
 
@@ -1734,7 +1735,7 @@ def analisis_poblacional():
 
     grafica_k1 = fig_k1.to_html(
         full_html=False,
-        include_plotlyjs=True,
+        include_plotlyjs=False,
         config={"displayModeBar": False}
     )
 
@@ -1777,7 +1778,7 @@ def analisis_poblacional():
 
     grafica_k2 = fig_k2.to_html(
         full_html=False,
-        include_plotlyjs=True,
+        include_plotlyjs=False,
         config={"displayModeBar": False}
     )
 
@@ -1834,7 +1835,7 @@ def analisis_poblacional():
 
     grafica_k3 = fig_k3.to_html(
         full_html=False,
-        include_plotlyjs=True,
+        include_plotlyjs=False,
         config={"displayModeBar": False}
     )
 
@@ -1866,9 +1867,17 @@ def dimension_territorial():
     return render_template(
         'dim_2.html',
         titulo="Dimensión Territorial",
+        analisis_url=url_for('analisis_territorial'),
         **contexto,
     )
 
+@app.route('/analisis-territorial')
+def analisis_territorial():
+    # El módulo de análisis necesita el CSV CRUDO, no el procesado,
+    # porque accede a columnas originales (FECHA PUBLICACION, etc.).
+    df_crudo = cargar_dataset_poblacional()
+    contexto = analisis_terr.construir_contexto_analisis(df_crudo)
+    return render_template('analisis_territorial.html', **contexto)
 
 # ============================================================
 # DIMENSIÓN TEMPORAL
@@ -1977,7 +1986,7 @@ def dimension_temporal():
 
     grafica_stock = fig_stock.to_html(
         full_html=False,
-        include_plotlyjs=True,
+        include_plotlyjs=False,
         config={"displayModeBar": False},
     )
 
@@ -2033,7 +2042,7 @@ def dimension_temporal():
 
     grafica_variacion = fig_variacion.to_html(
         full_html=False,
-        include_plotlyjs=True,
+        include_plotlyjs=False,
         config={"displayModeBar": False},
     )
 
@@ -2092,7 +2101,7 @@ def dimension_temporal():
 
     grafica_anual = fig_anual.to_html(
         full_html=False,
-        include_plotlyjs=True,
+        include_plotlyjs=False,
         config={"displayModeBar": False},
     )
 
@@ -2307,7 +2316,7 @@ def analisis_temporal():
 
     grafica_k1 = fig_k1.to_html(
         full_html=False,
-        include_plotlyjs=True,
+        include_plotlyjs=False,
         config={"displayModeBar": False},
     )
 
@@ -2362,7 +2371,7 @@ def analisis_temporal():
 
     grafica_k2 = fig_k2.to_html(
         full_html=False,
-        include_plotlyjs=True,
+        include_plotlyjs=False,
         config={"displayModeBar": False},
     )
 
@@ -2401,7 +2410,7 @@ def analisis_temporal():
 
     grafica_k3 = fig_k3.to_html(
         full_html=False,
-        include_plotlyjs=True,
+        include_plotlyjs=False,
         config={"displayModeBar": False},
     )
 
