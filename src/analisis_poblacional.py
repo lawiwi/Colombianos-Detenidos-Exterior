@@ -271,7 +271,7 @@ fig_genero.update_layout(template="plotly_dark", height=500)
 
 fig_genero.write_html(
     os.path.join(OUTPUT_DIR, "grafica_genero.html"),
-    include_plotlyjs="cdn"
+    include_plotlyjs=True
 )
 
 
@@ -294,7 +294,7 @@ fig_edad.update_layout(template="plotly_dark", height=500)
 
 fig_edad.write_html(
     os.path.join(OUTPUT_DIR, "grafica_edad.html"),
-    include_plotlyjs=False
+    include_plotlyjs=True
 )
 
 
@@ -319,7 +319,7 @@ fig_delito.update_layout(template="plotly_dark", height=600)
 
 fig_delito.write_html(
     os.path.join(OUTPUT_DIR, "grafica_delito.html"),
-    include_plotlyjs=False
+    include_plotlyjs=True
 )
 
 
