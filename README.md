@@ -54,9 +54,14 @@ python app.py
 
 La aplicación queda en <http://127.0.0.1:5000>.
 
-La primera visita a una dimensión tarda alrededor de un segundo: es el
-momento en que se lee y normaliza el CSV de 54 MB. A partir de ahí el
-dataset queda en memoria y las páginas responden en milisegundos.
+Al arrancar el servicio (o al hacer la primera petición en desarrollo)
+se lee y normaliza el CSV de 54 MB; el dataset queda en memoria para las
+peticiones siguientes.
+
+La dimensión 4 conserva en memoria sus datos relacionales ya agrupados
+por combinación de categorías, para que las solicitudes y los filtros
+operen sobre una tabla reducida. Sus gráficas comparten una sola copia
+de Plotly.js por respuesta HTML.
 
 ### Generar los resultados del módulo temporal
 

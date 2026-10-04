@@ -611,6 +611,9 @@ def _etiqueta_clave_relacional(valor):
 
 def datos_dimension_relacional():
     """Prepara las variables de la dimensión relacional con etiquetas canónicas."""
+    if "dimension_relacional" in _CACHE_DATASET:
+        return _CACHE_DATASET["dimension_relacional"]
+
     base = cargar_dataset_procesado()
     datos = base[["PAIS", "DELITO", "SITUACION", "GENERO", "EDAD", "CANTIDAD"]].copy()
     datos = datos.rename(columns={
@@ -635,11 +638,25 @@ def datos_dimension_relacional():
             return "Narcotráfico"
         return normalizar_delito(reparado)
 
-    datos["PAIS PRISIÓN"] = datos["PAIS PRISIÓN"].map(limpiar_pais)
-    datos["DELITO"] = datos["DELITO"].map(limpiar_delito)
-    datos["SITUACIÓN JURÍDICA"] = datos["SITUACIÓN JURÍDICA"].map(normalizar_situacion)
-    datos["GÉNERO"] = datos["GÉNERO"].map(normalizar_genero)
-    datos["GRUPO EDAD"] = datos["GRUPO EDAD"].map(normalizar_edad)
+    datos["PAIS PRISIÓN"] = normalizar_columna(datos["PAIS PRISIÓN"], limpiar_pais)
+    datos["DELITO"] = normalizar_columna(datos["DELITO"], limpiar_delito)
+    datos["SITUACIÓN JURÍDICA"] = normalizar_columna(
+        datos["SITUACIÓN JURÍDICA"], normalizar_situacion
+    )
+    datos["GÉNERO"] = normalizar_columna(datos["GÉNERO"], normalizar_genero)
+    datos["GRUPO EDAD"] = normalizar_columna(datos["GRUPO EDAD"], normalizar_edad)
+
+    columnas = [
+        "PAIS PRISIÓN",
+        "DELITO",
+        "SITUACIÓN JURÍDICA",
+        "GÉNERO",
+        "GRUPO EDAD",
+    ]
+    datos = datos.groupby(
+        columnas, as_index=False, dropna=False, sort=False
+    )["CANTIDAD"].sum()
+    _CACHE_DATASET["dimension_relacional"] = datos
     return datos
 
 
@@ -706,6 +723,17 @@ def dimension_4():
         )
         return figura
 
+    plotlyjs_incluido = False
+
+    def renderizar_figura(figura):
+        nonlocal plotlyjs_incluido
+        html = figura.to_html(
+            full_html=False,
+            include_plotlyjs=not plotlyjs_incluido,
+        )
+        plotlyjs_incluido = True
+        return html
+
     graficas = []
 
     cruce = (
@@ -759,7 +787,7 @@ def dimension_4():
             f"{combinacion_top['SITUACIÓN JURÍDICA']} "
             f"({formato_numero(combinacion_top['CANTIDAD'])} personas)."
         )
-        graficas.append(figura.to_html(full_html=False, include_plotlyjs=True))
+        graficas.append(renderizar_figura(figura))
     else:
         interpretacion_1 = "No hay registros para los filtros seleccionados."
         graficas.append("")
@@ -809,7 +837,7 @@ def dimension_4():
             f"país-delito más numerosa de la selección es {pais_top} · {delito_top} "
             f"({formato_numero(top_combinacion.iloc[0])} personas)."
         )
-        graficas.append(figura.to_html(full_html=False, include_plotlyjs=True))
+        graficas.append(renderizar_figura(figura))
     else:
         interpretacion_2 = "No hay países identificados para comparar con los filtros actuales."
         graficas.append("")
@@ -848,7 +876,7 @@ def dimension_4():
             f"{mayor_burbuja['GÉNERO']} "
             f"({formato_numero(mayor_burbuja['CANTIDAD'])} personas)."
         )
-        graficas.append(figura.to_html(full_html=False, include_plotlyjs=True))
+        graficas.append(renderizar_figura(figura))
     else:
         interpretacion_3 = "No hay registros para los filtros seleccionados."
         graficas.append("")
@@ -887,7 +915,7 @@ def dimension_4():
         )
         figura.update_xaxes(tickangle=35)
         preparar_figura(figura, 410)
-        grafica_narcotrafico = figura.to_html(full_html=False, include_plotlyjs=True)
+        grafica_narcotrafico = renderizar_figura(figura)
         tabla_narcotrafico = tabla.sort_values(
             ["PAIS PRISIÓN", "CANTIDAD"], ascending=[True, False]
         ).to_dict("records")
@@ -916,7 +944,7 @@ def dimension_4():
             hovertemplate="<b>%{label}</b><br>Personas: %{value:,.0f}<extra></extra>"
         )
         preparar_figura(figura, 430)
-        grafica_genero = figura.to_html(full_html=False, include_plotlyjs=True)
+        grafica_genero = renderizar_figura(figura)
     else:
         grafica_genero = ""
 
@@ -954,7 +982,7 @@ def dimension_4():
         )
         figura.update_xaxes(tickangle=35)
         preparar_figura(figura, 400)
-        grafica_raros = figura.to_html(full_html=False, include_plotlyjs=True)
+        grafica_raros = renderizar_figura(figura)
         tabla_raros = raros_agrupados.nlargest(25, "CANTIDAD").to_dict("records")
     else:
         grafica_raros = ""
@@ -1156,6 +1184,17 @@ def analisis_relacional():
         )
         return figura
 
+    plotlyjs_incluido = False
+
+    def renderizar_figura(figura):
+        nonlocal plotlyjs_incluido
+        html = figura.to_html(
+            full_html=False,
+            include_plotlyjs=not plotlyjs_incluido,
+        )
+        plotlyjs_incluido = True
+        return html
+
     graficas = []
     interpretaciones = []
 
@@ -1184,7 +1223,7 @@ def analisis_relacional():
             hovertemplate="<b>%{label}</b><br>Personas reportadas: %{value:,.0f}<extra></extra>",
         )
         preparar_figura(figura, 550)
-        graficas.append(figura.to_html(full_html=False, include_plotlyjs=True))
+        graficas.append(renderizar_figura(figura))
         interpretaciones.append(
             f"Entre los países identificados, {pais_principal} reúne "
             f"{cantidad_pais_principal:,.0f} personas reportadas "
@@ -1223,7 +1262,7 @@ def analisis_relacional():
         )
         figura.update_xaxes(tickangle=35)
         preparar_figura(figura, 740)
-        graficas.append(figura.to_html(full_html=False, include_plotlyjs=True))
+        graficas.append(renderizar_figura(figura))
         interpretaciones.append(
             "La comparación se limita a los cinco países y ocho delitos con "
             "mayor volumen conocido; las barras apilan la situación jurídica "
@@ -1260,7 +1299,7 @@ def analisis_relacional():
         figura.update_xaxes(tickangle=35)
         preparar_figura(figura, 500)
         mayor_burbuja = burbujas.nlargest(1, "CANTIDAD").iloc[0]
-        graficas.append(figura.to_html(full_html=False, include_plotlyjs=True))
+        graficas.append(renderizar_figura(figura))
         interpretaciones.append(
             f"Cada burbuja cruza edad, delito y género; el tamaño refleja "
             f"personas reportadas. La combinación de mayor volumen visible es "
