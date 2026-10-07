@@ -1,38 +1,461 @@
+/* ============================================================
+   PORTADA
+   ------------------------------------------------------------
+   Estetica cyber del proyecto: Syncopate para los titulos, Share
+   Tech Mono para el texto, cian y rosa sobre fondo casi negro. El
+   recorte en bisel y las esquinas marcadas son los mismos recursos
+   que usan los tableros, para que la portada no se sienta ajena.
+   ============================================================ */
+
+
+/* ============================================================
+   ENCABEZADO
+   ============================================================ */
+
 .hero-section {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    min-height: 70vh;
+    padding: 46px 0 34px;
     text-align: center;
+    border-bottom: 1px dashed rgba(0, 255, 255, 0.18);
+    margin-bottom: 38px;
 }
 
-.glitch-container { margin-bottom: 40px; }
+.hero-eyebrow {
+    font-size: 0.74rem;
+    letter-spacing: 4px;
+    color: rgba(0, 255, 255, 0.65);
+    text-transform: uppercase;
+    margin-bottom: 22px;
+}
+
+.hero-title {
+    margin-bottom: 22px;
+}
 
 .glitch-text {
+    display: block;
     font-family: 'Syncopate', sans-serif;
-    font-size: 4rem;
+    font-size: clamp(1.9rem, 6.4vw, 4.3rem);
     font-weight: 700;
+    letter-spacing: 4px;
+    line-height: 1.14;
     color: transparent;
     -webkit-text-stroke: 1px var(--neon-pink);
-    text-shadow: 4px 4px 0px rgba(0, 255, 255, 0.6);
+    text-shadow: 4px 4px 0px rgba(0, 255, 255, 0.45);
 }
 
-.welcome-panel { max-width: 600px; text-align: left; }
-.stage-list { list-style: none; margin: 20px 0; padding: 0; }
-.stage-list li { margin-bottom: 10px; padding: 10px; background: rgba(255,255,255,0.05); border-left: 3px solid var(--neon-pink); }
+/* La segunda linea pierde peso visual para no competir con la primera */
+.hero-title-soft {
+    -webkit-text-stroke: 1px rgba(0, 255, 255, 0.75);
+    text-shadow: 3px 3px 0px rgba(255, 0, 85, 0.35);
+    font-size: clamp(1.05rem, 4.4vw, 3rem);
+    letter-spacing: 6px;
+}
+
+.hero-lead {
+    max-width: 780px;
+    margin: 0 auto 28px;
+    font-size: 0.95rem;
+    line-height: 1.85;
+    color: rgba(224, 224, 224, 0.88);
+}
+
+.hero-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    justify-content: center;
+    margin-bottom: 26px;
+}
+
+/* Botones */
+.cyber-btn,
+.cyber-btn-ghost {
+    display: inline-block;
+    padding: 11px 22px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    text-decoration: none;
+    clip-path: polygon(10px 0, 100% 0, calc(100% - 10px) 100%, 0 100%);
+    transition: background 0.3s, color 0.3s, box-shadow 0.3s;
+}
 
 .cyber-btn {
-    display: inline-block;
     background: var(--neon-pink);
     color: #fff;
-    padding: 10px 20px;
-    text-decoration: none;
-    font-weight: bold;
-    clip-path: polygon(10px 0, 100% 0, calc(100% - 10px) 100%, 0 100%);
-    border: none;
-    cursor: pointer;
-    text-align: center;
-    transition: 0.3s;
+    border: 1px solid var(--neon-pink);
 }
-.cyber-btn:hover { background: var(--neon-cyan); color: #000; }
+
+.cyber-btn-ghost {
+    background: transparent;
+    color: var(--neon-cyan);
+    border: 1px solid var(--neon-cyan);
+}
+
+.cyber-btn:hover {
+    background: var(--neon-cyan);
+    border-color: var(--neon-cyan);
+    color: #000;
+    box-shadow: 0 0 14px rgba(0, 255, 255, 0.45);
+}
+
+.cyber-btn-ghost:hover {
+    background: var(--neon-cyan);
+    color: #000;
+    box-shadow: 0 0 14px rgba(0, 255, 255, 0.45);
+}
+
+.hero-status {
+    font-size: 0.78rem;
+    letter-spacing: 1px;
+    color: rgba(224, 224, 224, 0.6);
+}
+
+.hero-status-sep {
+    margin: 0 8px;
+    color: var(--neon-pink);
+}
+
+/* Punto de estado: el mismo recurso de "sistema vivo" del menu */
+.status-dot {
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    margin-right: 9px;
+    border-radius: 50%;
+    background: var(--neon-cyan);
+    box-shadow: 0 0 8px var(--neon-cyan);
+    animation: latido 2.4s ease-in-out infinite;
+}
+
+@keyframes latido {
+
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.25; }
+
+}
+
+
+/* ============================================================
+   CIFRAS DE CABECERA
+   ============================================================ */
+
+.kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+    gap: 18px;
+}
+
+.kpi-card {
+    padding: 22px 24px 20px;
+}
+
+.kpi-card::after {
+    content: '';
+    position: absolute;
+    right: -1px;
+    bottom: -1px;
+    width: 20px;
+    height: 2px;
+    background: var(--neon-pink);
+}
+
+.kpi-label {
+    font-size: 0.72rem;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: rgba(0, 255, 255, 0.8);
+    margin-bottom: 12px;
+}
+
+.kpi-value {
+    font-family: 'Syncopate', sans-serif;
+    font-size: 2.1rem;
+    font-weight: 700;
+    color: #fff;
+    line-height: 1.1;
+    text-shadow: 0 0 12px rgba(255, 0, 85, 0.55);
+}
+
+.kpi-value-cyan {
+    color: var(--neon-cyan);
+    text-shadow: 0 0 12px rgba(0, 255, 255, 0.5);
+}
+
+.kpi-note {
+    margin-top: 10px;
+    font-size: 0.75rem;
+    line-height: 1.6;
+    color: rgba(224, 224, 224, 0.6);
+}
+
+.series-note {
+    margin: 22px 0 0;
+    padding: 16px 20px;
+    font-size: 0.86rem;
+    line-height: 1.8;
+    color: rgba(224, 224, 224, 0.82);
+    background: rgba(255, 0, 85, 0.06);
+    border-left: 3px solid var(--neon-pink);
+}
+
+.series-note strong {
+    color: var(--neon-cyan);
+}
+
+.home-warning {
+    border-color: rgba(255, 0, 85, 0.45);
+}
+
+.home-warning strong {
+    color: var(--neon-pink);
+    letter-spacing: 1px;
+}
+
+.home-warning p {
+    margin-top: 10px;
+    line-height: 1.8;
+    font-size: 0.85rem;
+    color: rgba(224, 224, 224, 0.8);
+}
+
+
+/* ============================================================
+   SECCIONES
+   ============================================================ */
+
+.home-section {
+    margin-top: 46px;
+}
+
+.section-head {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 20px;
+}
+
+.section-index {
+    font-family: 'Syncopate', sans-serif;
+    font-size: 0.85rem;
+    color: var(--neon-pink);
+    text-shadow: 1px 1px 0px rgba(0, 255, 255, 0.5);
+}
+
+.section-title {
+    font-family: 'Syncopate', sans-serif;
+    font-size: 1rem;
+    font-weight: 400;
+    letter-spacing: 3px;
+    color: var(--neon-cyan);
+    text-transform: uppercase;
+}
+
+.section-head::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(
+        to right,
+        rgba(0, 255, 255, 0.35),
+        transparent
+    );
+}
+
+
+/* ============================================================
+   TARJETAS DE DIMENSION
+   ============================================================ */
+
+.dim-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 18px;
+}
+
+.dim-card {
+    display: flex;
+    flex-direction: column;
+    padding: 22px 24px 20px;
+    transition: transform 0.3s, border-color 0.3s, box-shadow 0.3s;
+}
+
+.dim-card:hover {
+    transform: translateY(-3px);
+    border-color: rgba(0, 255, 255, 0.65);
+    box-shadow: 0 0 18px rgba(0, 255, 255, 0.18);
+}
+
+.dim-card-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+}
+
+.dim-code {
+    font-family: 'Syncopate', sans-serif;
+    font-size: 1.1rem;
+    color: var(--neon-pink);
+    text-shadow: 1px 1px 0px rgba(0, 255, 255, 0.5);
+}
+
+.dim-status {
+    font-size: 0.64rem;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: rgba(224, 224, 224, 0.55);
+    border: 1px dashed rgba(224, 224, 224, 0.3);
+    padding: 3px 8px;
+}
+
+.dim-status-live {
+    color: var(--neon-cyan);
+    border-color: rgba(0, 255, 255, 0.5);
+    border-style: solid;
+}
+
+.dim-name {
+    font-family: 'Syncopate', sans-serif;
+    font-size: 0.92rem;
+    font-weight: 400;
+    letter-spacing: 1px;
+    color: #fff;
+    margin-bottom: 10px;
+}
+
+.dim-question {
+    font-size: 0.82rem;
+    line-height: 1.75;
+    color: rgba(224, 224, 224, 0.72);
+    margin-bottom: 18px;
+    flex: 1;
+}
+
+.dim-link {
+    font-size: 0.78rem;
+    font-weight: bold;
+    letter-spacing: 1px;
+    color: var(--neon-cyan);
+    text-decoration: none;
+    transition: color 0.3s, letter-spacing 0.3s;
+}
+
+.dim-link:hover {
+    color: var(--neon-pink);
+    letter-spacing: 2px;
+}
+
+
+/* ============================================================
+   PANELES DE CIERRE
+   ============================================================ */
+
+.home-split {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 18px;
+}
+
+.home-split .cyber-panel {
+    padding: 26px 28px 24px;
+}
+
+.panel-text {
+    font-size: 0.85rem;
+    line-height: 1.8;
+    color: rgba(224, 224, 224, 0.78);
+    margin-bottom: 18px;
+}
+
+.panel-links {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    align-items: flex-start;
+}
+
+.panel-links .cyber-btn-ghost {
+    font-size: 0.76rem;
+    padding: 10px 18px;
+}
+
+.meta-list {
+    margin: 0;
+}
+
+.meta-list dt {
+    font-size: 0.7rem;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--neon-cyan);
+    margin-top: 14px;
+}
+
+.meta-list dt:first-of-type {
+    margin-top: 0;
+}
+
+.meta-list dd {
+    margin: 4px 0 0;
+    font-size: 0.83rem;
+    line-height: 1.7;
+    color: rgba(224, 224, 224, 0.8);
+}
+
+.meta-list code {
+    color: var(--neon-pink);
+}
+
+.home-note {
+    margin-top: 30px;
+    font-size: 0.78rem;
+    line-height: 1.8;
+    color: rgba(224, 224, 224, 0.55);
+    text-align: center;
+}
+
+
+/* ============================================================
+   PANTALLAS ESTRECHAS
+   ============================================================ */
+
+@media (max-width: 768px) {
+
+    .hero-section {
+        padding: 30px 0 26px;
+        margin-bottom: 28px;
+    }
+
+    .hero-eyebrow {
+        font-size: 0.66rem;
+        letter-spacing: 2px;
+    }
+
+    .glitch-text {
+        letter-spacing: 2px;
+        text-shadow: 3px 3px 0px rgba(0, 255, 255, 0.45);
+    }
+
+    .hero-title-soft {
+        letter-spacing: 2px;
+    }
+
+    .hero-actions {
+        flex-direction: column;
+        align-items: stretch;
+        text-align: center;
+    }
+
+    .kpi-value {
+        font-size: 1.7rem;
+    }
+
+    .home-section {
+        margin-top: 34px;
+    }
+
+    .home-note {
+        text-align: left;
+    }
+
+}

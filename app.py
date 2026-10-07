@@ -449,6 +449,128 @@ def cargar_dataset_procesado():
 
 
 # ============================================================
+# RESUMEN DE LA PORTADA
+# ------------------------------------------------------------
+# La portada muestra las cifras del último corte para que quien entra
+# por "/" sepa en un vistazo de qué trata el proyecto sin abrir un
+# tablero. Los valores salen del mismo dataset ya normalizado y
+# cacheado que usan las dimensiones, así que no cuestan una segunda
+# lectura del CSV.
+#
+# El cálculo se cachea aparte porque los cortes publicados no cambian
+# dentro de una sesión: se resuelve una vez y las visitas siguientes
+# solo pintan los mismos números.
+# ============================================================
+
+# Valores de la columna PAIS que no son un lugar de prision: el dato
+# desconocido y las salidas del pais. No permiten afirmar que la persona
+# estuviera detenida ahi, asi que quedan fuera del conteo y por eso la
+# cifra de la portada se lee como paises y territorios representados.
+VALORES_PAIS_NO_PAIS = {
+    "desconocido",
+    "sin informacion",
+    "extradicion",
+    "extradicion repatriacion",
+    "repatriacion",
+    "no reporta",
+}
+
+# El conjunto escribe dos veces el mismo territorio de dos formas. Sin
+# esta correccion el conteo de paises los sumaria dos veces.
+ALIAS_PAIS = {
+    "espaa": "espana",
+    "curacao": "curaao",
+}
+
+
+def numero_es(valor, decimales=0, signo=False):
+    """
+    Formatea un número con separador de miles y coma decimal, que es
+    como se escriben las cifras en el resto de la aplicación y en el
+    documento del proyecto.
+    """
+
+    if valor is None or pd.isna(valor):
+        return "—"
+
+    texto = f"{float(valor):,.{decimales}f}"
+    entero, _, decimales_texto = texto.partition(".")
+
+    if signo:
+        entero = ("+" if float(valor) >= 0 else "−") + entero
+
+    return (
+        entero.replace(",", ".")
+        + ("," + decimales_texto if decimales_texto else "")
+    )
+
+
+def resumen_portada():
+    """
+    Cifras de cabecera para la portada.
+
+    Devuelve un diccionario con la clave "disponible". Si el conjunto de
+    datos no se puede leer, el resumen llega igual pero sin cifras y la
+    portada lo avisa, en lugar de responder con un error 500.
+    """
+
+    if "portada" in _CACHE_DATASET:
+        return _CACHE_DATASET["portada"]
+
+    try:
+        df = cargar_dataset_procesado()
+
+        serie = temporal.serie_temporal(df)
+        indicadores = temporal.indicadores(serie)
+
+        paises = set()
+
+        for valor in df["PAIS"].dropna().unique():
+            clave = sin_acentos(normalizar_pais(valor))
+            clave = ALIAS_PAIS.get(clave, clave)
+
+            if clave not in VALORES_PAIS_NO_PAIS:
+                paises.add(clave)
+
+        fecha_stock = pd.Timestamp(
+            indicadores["fecha_stock_actual"]
+        ).strftime("%d/%m/%Y")
+
+        resumen = {
+            "stock": indicadores["stock_actual"],
+            "stock_texto": numero_es(indicadores["stock_actual"]),
+            "fecha_stock": fecha_stock,
+            "crecimiento_pct": indicadores["crecimiento_total_pct"],
+            "crecimiento_texto": numero_es(
+                indicadores["crecimiento_total_pct"],
+                decimales=2,
+                signo=True,
+            ) + " %",
+            "ritmo_diario": indicadores["ritmo_diario"],
+            "ritmo_texto": numero_es(
+                indicadores["ritmo_diario"], decimales=2
+            ),
+            "cortes": indicadores["total_cortes"],
+            "cortes_texto": numero_es(indicadores["total_cortes"]),
+            "paises": len(paises),
+            "paises_texto": numero_es(len(paises)),
+            "registros": int(len(df)),
+            "registros_texto": numero_es(int(len(df))),
+            "anio_inicial": int(serie["ANIO"].min()),
+            "anio_final": int(serie["ANIO"].max()),
+            "disponible": True,
+        }
+
+    except Exception:
+        # Sin dataset no hay cifras, pero la portada es una página
+        # informativa y debe seguir abriendo.
+        resumen = {"disponible": False}
+
+    _CACHE_DATASET["portada"] = resumen
+    return resumen
+
+
+# ============================================================
 # GENERADORES DE INTERPRETACIÓN DINÁMICA
 # ============================================================
 
@@ -588,7 +710,7 @@ def interpretacion_delito(delito_df, pais, edad):
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    return render_template('index.html', resumen=resumen_portada())
 
 
 @app.route('/dimension-1')
@@ -610,8 +732,40 @@ def _etiqueta_clave_relacional(valor):
     return re.sub(r"[^A-Z0-9]", "", sin_acentos(valor).replace("\ufffd", "").upper())
 
 
+def _limpiar_pais_relacional(valor):
+    reparado = reparar_mojibake(valor)
+    clave = _etiqueta_clave_relacional(reparado)
+    if clave in {"ESPA", "ESPAA", "ESPANA"}:
+        return "España"
+    return normalizar_pais(reparado)
+
+
+def _limpiar_delito_relacional(valor):
+    reparado = reparar_mojibake(valor)
+    clave = _etiqueta_clave_relacional(reparado)
+    if clave.startswith("NARCOTR") and clave.endswith("FICO"):
+        return "Narcotráfico"
+    return normalizar_delito(reparado)
+
+
 def datos_dimension_relacional():
-    """Prepara las variables de la dimensión relacional con etiquetas canónicas."""
+    """
+    Prepara las variables de la dimensión relacional con etiquetas canónicas.
+
+    Se resuelve una sola vez: la copia de las seis columnas y la
+    aplicación de los normalizadores se cachean en memoria, igual que el
+    dataset procesado. Las rutas de la dimensión 4 solo leen el
+    resultado y lo filtran, así que no hace falta recalcularlo en cada
+    visita.
+
+    Los normalizadores se aplican con `normalizar_columna`, que evalúa
+    cada función una vez por valor distinto en lugar de una vez por
+    fila. Con 388.148 registros, la diferencia es la que separa una
+    pestaña que responde en milisegundos de una que tarda segundos.
+    """
+    if "relacional" in _CACHE_DATASET:
+        return _CACHE_DATASET["relacional"]
+
     base = cargar_dataset_procesado()
     datos = base[["PAIS", "DELITO", "SITUACION", "GENERO", "EDAD", "CANTIDAD"]].copy()
     datos = datos.rename(columns={
@@ -622,32 +776,38 @@ def datos_dimension_relacional():
     })
     datos["CANTIDAD"] = pd.to_numeric(datos["CANTIDAD"], errors="coerce").fillna(0)
 
-    def limpiar_pais(valor):
-        reparado = reparar_mojibake(valor)
-        clave = _etiqueta_clave_relacional(reparado)
-        if clave in {"ESPA", "ESPAA", "ESPANA"}:
-            return "España"
-        return normalizar_pais(reparado)
+    datos["PAIS PRISIÓN"] = normalizar_columna(
+        datos["PAIS PRISIÓN"], _limpiar_pais_relacional
+    )
+    datos["DELITO"] = normalizar_columna(
+        datos["DELITO"], _limpiar_delito_relacional
+    )
+    datos["SITUACIÓN JURÍDICA"] = normalizar_columna(
+        datos["SITUACIÓN JURÍDICA"], normalizar_situacion
+    )
+    datos["GÉNERO"] = normalizar_columna(datos["GÉNERO"], normalizar_genero)
+    datos["GRUPO EDAD"] = normalizar_columna(datos["GRUPO EDAD"], normalizar_edad)
 
-    def limpiar_delito(valor):
-        reparado = reparar_mojibake(valor)
-        clave = _etiqueta_clave_relacional(reparado)
-        if clave.startswith("NARCOTR") and clave.endswith("FICO"):
-            return "Narcotráfico"
-        return normalizar_delito(reparado)
+    # Claves de comparación (sin tildes, en mayúsculas) precalculadas una
+    # vez por valor distinto. Las rutas las usan para comparar categorías
+    # como "CONDENADO" o "NARCOTRAFICO" sin invocar el normalizador una
+    # vez por fila en cada visita.
+    datos["_CLAVE_PAIS"] = normalizar_columna(
+        datos["PAIS PRISIÓN"], _etiqueta_clave_relacional
+    )
+    datos["_CLAVE_DELITO"] = normalizar_columna(
+        datos["DELITO"], _etiqueta_clave_relacional
+    )
+    datos["_CLAVE_SITUACION"] = normalizar_columna(
+        datos["SITUACIÓN JURÍDICA"], _etiqueta_clave_relacional
+    )
 
-    datos["PAIS PRISIÓN"] = datos["PAIS PRISIÓN"].map(limpiar_pais)
-    datos["DELITO"] = datos["DELITO"].map(limpiar_delito)
-    datos["SITUACIÓN JURÍDICA"] = datos["SITUACIÓN JURÍDICA"].map(normalizar_situacion)
-    datos["GÉNERO"] = datos["GÉNERO"].map(normalizar_genero)
-    datos["GRUPO EDAD"] = datos["GRUPO EDAD"].map(normalizar_edad)
+    _CACHE_DATASET["relacional"] = datos
     return datos
 
 
 @app.route('/dimension-4')
 def dimension_4():
-    datos = datos_dimension_relacional()
-
     paises_seleccionados = request.args.getlist("pais")
     categorias_seleccionadas = request.args.getlist("categoria")
     delitos_seleccionados = [
@@ -661,6 +821,14 @@ def dimension_4():
         if valor.startswith("SITUACION::")
     ]
 
+    sin_filtros = not (
+        paises_seleccionados or delitos_seleccionados or situaciones_seleccionadas
+    )
+    if sin_filtros and "dim4_default" in _CACHE_DATASET:
+        return render_template("dim_4.html", **_CACHE_DATASET["dim4_default"])
+
+    datos = datos_dimension_relacional()
+
     filtrados = datos
     if paises_seleccionados:
         filtrados = filtrados.loc[filtrados["PAIS PRISIÓN"].isin(paises_seleccionados)]
@@ -672,9 +840,7 @@ def dimension_4():
         ]
 
     desconocidos = {"DESCONOCIDO", "SININFORMACION"}
-    paises_conocidos = datos.loc[
-        ~datos["PAIS PRISIÓN"].map(_etiqueta_clave_relacional).isin(desconocidos)
-    ]
+    paises_conocidos = datos.loc[~datos["_CLAVE_PAIS"].isin(desconocidos)]
     total = float(filtrados["CANTIDAD"].sum())
     total_global = float(datos["CANTIDAD"].sum())
     ranking_paises = paises_conocidos.groupby("PAIS PRISIÓN")["CANTIDAD"].sum().sort_values(
@@ -765,9 +931,7 @@ def dimension_4():
         interpretacion_1 = "No hay registros para los filtros seleccionados."
         graficas.append("")
 
-    conocidos_filtrados = filtrados.loc[
-        ~filtrados["PAIS PRISIÓN"].map(_etiqueta_clave_relacional).isin(desconocidos)
-    ]
+    conocidos_filtrados = filtrados.loc[~filtrados["_CLAVE_PAIS"].isin(desconocidos)]
     if not conocidos_filtrados.empty:
         top_paises = (
             conocidos_filtrados.groupby("PAIS PRISIÓN")["CANTIDAD"].sum().nlargest(5).index
@@ -855,7 +1019,7 @@ def dimension_4():
         graficas.append("")
 
     narcotrafico = paises_conocidos.loc[
-        paises_conocidos["DELITO"].map(_etiqueta_clave_relacional).eq("NARCOTRAFICO")
+        paises_conocidos["_CLAVE_DELITO"].eq("NARCOTRAFICO")
     ]
     if paises_seleccionados:
         narcotrafico = narcotrafico.loc[
@@ -966,13 +1130,9 @@ def dimension_4():
         if paises_seleccionados
         else datos
     )
-    paises_decision = paises_decision.loc[
-        ~paises_decision["PAIS PRISIÓN"].map(_etiqueta_clave_relacional).isin(desconocidos)
-    ]
+    paises_decision = paises_decision.loc[~paises_decision["_CLAVE_PAIS"].isin(desconocidos)]
     sin_definicion = paises_decision.loc[
-        paises_decision["SITUACIÓN JURÍDICA"].map(_etiqueta_clave_relacional).isin(
-            {"ENJUICIO", "ENINVESTIGACION"}
-        )
+        paises_decision["_CLAVE_SITUACION"].isin({"ENJUICIO", "ENINVESTIGACION"})
     ].groupby("PAIS PRISIÓN")["CANTIDAD"].sum().rename("Personas sin definición")
     totales_decision = paises_decision.groupby("PAIS PRISIÓN")["CANTIDAD"].sum().rename(
         "Total conocido"
@@ -998,40 +1158,52 @@ def dimension_4():
         ("CANTIDAD", "Cuantitativa discreta", "Métrica de conteo"),
     ]
 
-    return render_template(
-        "dim_4.html",
-        titulo="Dimensión 4",
-        variables=variables,
-        paises=sorted(datos["PAIS PRISIÓN"].dropna().unique()),
-        delitos=sorted(datos["DELITO"].dropna().unique()),
-        situaciones=sorted(datos["SITUACIÓN JURÍDICA"].dropna().unique()),
-        paises_seleccionados=paises_seleccionados,
-        categorias_seleccionadas=categorias_seleccionadas,
-        total=formato_numero(total),
-        pais_principal=pais_principal,
-        porcentaje_pais_principal=porcentaje_pais_principal,
-        delito_principal=delito_principal,
-        porcentaje_delito_principal=porcentaje_delito_principal,
-        graficas=graficas,
-        interpretaciones=[interpretacion_1, interpretacion_2, interpretacion_3],
-        grafica_narcotrafico=grafica_narcotrafico,
-        tabla_narcotrafico=tabla_narcotrafico,
-        grafica_genero=grafica_genero,
-        grafica_raros=grafica_raros,
-        tabla_raros=tabla_raros,
-        prioridades=prioridades.to_dict("records"),
-    )
+    contexto = {
+        "titulo": "Dimensión 4",
+        "variables": variables,
+        "paises": sorted(datos["PAIS PRISIÓN"].dropna().unique()),
+        "delitos": sorted(datos["DELITO"].dropna().unique()),
+        "situaciones": sorted(datos["SITUACIÓN JURÍDICA"].dropna().unique()),
+        "paises_seleccionados": paises_seleccionados,
+        "categorias_seleccionadas": categorias_seleccionadas,
+        "total": formato_numero(total),
+        "pais_principal": pais_principal,
+        "porcentaje_pais_principal": porcentaje_pais_principal,
+        "delito_principal": delito_principal,
+        "porcentaje_delito_principal": porcentaje_delito_principal,
+        "graficas": graficas,
+        "interpretaciones": [interpretacion_1, interpretacion_2, interpretacion_3],
+        "grafica_narcotrafico": grafica_narcotrafico,
+        "tabla_narcotrafico": tabla_narcotrafico,
+        "grafica_genero": grafica_genero,
+        "grafica_raros": grafica_raros,
+        "tabla_raros": tabla_raros,
+        "prioridades": prioridades.to_dict("records"),
+    }
+
+    # La vista sin filtros es la entrada más frecuente a la pestaña. Su
+    # contexto se guarda completo para que la segunda visita no vuelva a
+    # construir las seis figuras de Plotly.
+    if sin_filtros:
+        _CACHE_DATASET["dim4_default"] = contexto
+
+    return render_template("dim_4.html", **contexto)
 
 
 @app.route('/analisis-relacional')
 def analisis_relacional():
+    # El análisis completo no recibe filtros: se construye una sola vez
+    # y las visitas siguientes reutilizan el contexto ya resuelto.
+    if "relacional_analisis" in _CACHE_DATASET:
+        return render_template(
+            "analisis_relacional.html", **_CACHE_DATASET["relacional_analisis"]
+        )
+
     datos = datos_dimension_relacional()
 
     total = float(datos["CANTIDAD"].sum())
     desconocidos = {"DESCONOCIDO", "SININFORMACION"}
-    conocidos = datos.loc[
-        ~datos["PAIS PRISIÓN"].map(_etiqueta_clave_relacional).isin(desconocidos)
-    ]
+    conocidos = datos.loc[~datos["_CLAVE_PAIS"].isin(desconocidos)]
     cantidad_paises_conocidos = float(conocidos["CANTIDAD"].sum())
     paises = conocidos.groupby("PAIS PRISIÓN")["CANTIDAD"].sum().sort_values(
         ascending=False
@@ -1046,9 +1218,7 @@ def analisis_relacional():
     porcentaje_delito_principal = cantidad_delito_principal / total * 100 if total else 0
 
     sin_definicion = datos.loc[
-        datos["SITUACIÓN JURÍDICA"].map(_etiqueta_clave_relacional).isin(
-            {"ENJUICIO", "ENINVESTIGACION"}
-        ),
+        datos["_CLAVE_SITUACION"].isin({"ENJUICIO", "ENINVESTIGACION"}),
         "CANTIDAD",
     ].sum()
     porcentaje_sin_definicion = float(sin_definicion) / total * 100 if total else 0
@@ -1108,22 +1278,18 @@ def analisis_relacional():
     ]
 
     paises_desconocidos = datos.loc[
-        datos["PAIS PRISIÓN"].map(_etiqueta_clave_relacional).isin(desconocidos),
+        datos["_CLAVE_PAIS"].isin(desconocidos),
         "CANTIDAD",
     ].sum()
     porcentaje_pais_desconocido = (
         float(paises_desconocidos) / total * 100 if total else 0
     )
 
-    narcotrafico = datos.loc[
-        datos["DELITO"].map(_etiqueta_clave_relacional).eq("NARCOTRAFICO")
-    ]
+    narcotrafico = datos.loc[datos["_CLAVE_DELITO"].eq("NARCOTRAFICO")]
     total_narcotrafico = float(narcotrafico["CANTIDAD"].sum())
     narcotrafico_condenado = float(
         narcotrafico.loc[
-            narcotrafico["SITUACIÓN JURÍDICA"]
-            .map(_etiqueta_clave_relacional)
-            .eq("CONDENADO"),
+            narcotrafico["_CLAVE_SITUACION"].eq("CONDENADO"),
             "CANTIDAD",
         ].sum()
     )
@@ -1282,34 +1448,36 @@ def analisis_relacional():
         ("CANTIDAD", "Cuantitativa discreta", "Número reportado en cada registro."),
     ]
 
-    return render_template(
-        "analisis_relacional.html",
-        total=total,
-        total_registros=len(datos),
-        cantidad_paises_conocidos=cantidad_paises_conocidos,
-        porcentaje_paises_conocidos=(
+    contexto = {
+        "total": total,
+        "total_registros": len(datos),
+        "cantidad_paises_conocidos": cantidad_paises_conocidos,
+        "porcentaje_paises_conocidos": (
             cantidad_paises_conocidos / total * 100 if total else 0
         ),
-        pais_principal=pais_principal,
-        porcentaje_pais_principal=porcentaje_pais_principal,
-        cantidad_pais_principal=cantidad_pais_principal,
-        porcentaje_pais_desconocido=porcentaje_pais_desconocido,
-        delito_principal=delito_principal,
-        cantidad_delito_principal=cantidad_delito_principal,
-        porcentaje_delito_principal=porcentaje_delito_principal,
-        porcentaje_sin_definicion=porcentaje_sin_definicion,
-        cantidad_sin_definicion=float(sin_definicion),
-        resumenes_variables=resumenes_variables,
-        total_narcotrafico=total_narcotrafico,
-        narcotrafico_condenado=narcotrafico_condenado,
-        porcentaje_narcotrafico_condenado=porcentaje_narcotrafico_condenado,
-        delito_estado_principal=delito_estado_principal,
-        situacion_delito_principal=situacion_delito_principal,
-        cantidad_delito_estado_principal=cantidad_delito_estado_principal,
-        variables=variables,
-        graficas=graficas,
-        interpretaciones=interpretaciones,
-    )
+        "pais_principal": pais_principal,
+        "porcentaje_pais_principal": porcentaje_pais_principal,
+        "cantidad_pais_principal": cantidad_pais_principal,
+        "porcentaje_pais_desconocido": porcentaje_pais_desconocido,
+        "delito_principal": delito_principal,
+        "cantidad_delito_principal": cantidad_delito_principal,
+        "porcentaje_delito_principal": porcentaje_delito_principal,
+        "porcentaje_sin_definicion": porcentaje_sin_definicion,
+        "cantidad_sin_definicion": float(sin_definicion),
+        "resumenes_variables": resumenes_variables,
+        "total_narcotrafico": total_narcotrafico,
+        "narcotrafico_condenado": narcotrafico_condenado,
+        "porcentaje_narcotrafico_condenado": porcentaje_narcotrafico_condenado,
+        "delito_estado_principal": delito_estado_principal,
+        "situacion_delito_principal": situacion_delito_principal,
+        "cantidad_delito_estado_principal": cantidad_delito_estado_principal,
+        "variables": variables,
+        "graficas": graficas,
+        "interpretaciones": interpretaciones,
+    }
+
+    _CACHE_DATASET["relacional_analisis"] = contexto
+    return render_template("analisis_relacional.html", **contexto)
 
 
 # ============================================================
@@ -2579,5 +2747,5 @@ if __name__ == '__main__':
     app.run(
         debug=True,
         use_reloader=False,
-        port=int(os.environ.get("PORT", 5000)),
+        port=int(os.environ.get("PORT", 5001)),
     )

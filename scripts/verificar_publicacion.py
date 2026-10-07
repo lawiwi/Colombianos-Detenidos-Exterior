@@ -43,7 +43,9 @@ import urllib.request
 
 RUTAS = [
     ("/", [
-        "SISTEMA INICIALIZADO", "INICIAR ETAPA 1",
+        "DETENIDOS", "EN EL EXTERIOR", "Dimensiones del análisis",
+        "Detenidos en el último corte", "ABRIR TABLEROS",
+        "FUENTE DEL DATO",
     ]),
 
     ("/dimension-poblacional", [
@@ -71,7 +73,16 @@ RUTAS = [
         "LIMITACIÓN Y DECISIÓN SUSTENTADA",
     ]),
 
-    ("/dimension-2", []),
+    ("/dimension-territorial", [
+        "DIMENSIÓN TERRITORIAL", "CONTINENTE", "PAÍS PRISIÓN",
+        "POBLACIÓN TOTAL", "TERRITORIO LÍDER", "CONCLUSIONES",
+    ]),
+
+    ("/analisis-territorial", [
+        "ANÁLISIS — DIMENSIÓN TERRITORIAL",
+        "METODOLOGÍA", "DECISIONES SUSTENTADAS", "LIMITACIONES",
+    ]),
+
     ("/dimension-4", [
         "Tablero de Análisis Relacional",
         "VER ANÁLISIS COMPLETO",
@@ -240,6 +251,7 @@ def verificar_redirecciones(base):
 
     destinos = {
         "/dimension-1": "/dimension-poblacional",
+        "/dimension-2": "/dimension-territorial",
         "/dimension-3": "/dimension-temporal",
     }
 

@@ -1,28 +1,264 @@
 {% extends "base.html" %}
 
-{% block title %}Inicio - CORE{% endblock %}
+{% block title %}Colombianos detenidos en el exterior{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/style_home.css') }}">
 {% endblock %}
 
 {% block content %}
-<div class="hero-section">
-    <div class="glitch-container">
-        <h1 class="glitch-text" data-text="MINERÍA">MINERÍA</h1>
-        <h1 class="glitch-text" data-text="DE DATOS">DE DATOS</h1>
+
+
+<!-- ======================================================
+     ENCABEZADO
+     ======================================================= -->
+
+<section class="hero-section">
+
+    <p class="hero-eyebrow">
+        Ministerio de Relaciones Exteriores · Portal Nacional de Datos Abiertos
+    </p>
+
+    <h1 class="hero-title">
+        <span class="glitch-text" data-text="DETENIDOS">DETENIDOS</span>
+        <span class="glitch-text hero-title-soft" data-text="EN EL EXTERIOR">EN EL EXTERIOR</span>
+    </h1>
+
+    <p class="hero-lead">
+        Análisis exploratorio de la población de ciudadanos colombianos
+        detenidos en el exterior. Cuatro dimensiones de trabajo sobre un
+        único conjunto de datos oficial, con indicadores, comparaciones
+        y visualizaciones que se pueden filtrar.
+    </p>
+
+    <div class="hero-actions">
+        <a href="{{ url_for('dimension_poblacional') }}" class="cyber-btn">
+            ABRIR TABLEROS
+        </a>
+        <a href="{{ url_for('dimension_temporal') }}" class="cyber-btn-ghost">
+            VER EVOLUCIÓN EN EL TIEMPO
+        </a>
     </div>
-    
-    <div class="cyber-panel welcome-panel">
-        <h3 class="panel-title">SISTEMA INICIALIZADO</h3>
-        <p>Bienvenido al entorno de análisis. Explora las etapas del proyecto navegando por las dimensiones superiores.</p>
-        <ul class="stage-list">
-            <li><span class="neon-text">D1:</span> Etapa 1 - Perfilamiento y Calidad</li>
-            <li><span class="neon-text">D2:</span> Etapa 2 - Limpieza de Datos</li>
-            <li><span class="neon-text">D3:</span> Etapa 3 - Minería y Modelado</li>
-            <li><span class="neon-text">D4:</span> Etapa 4 - Resultados y Conclusiones</li>
-        </ul>
-        <a href="{{ url_for('dimension_1') }}" class="cyber-btn">INICIAR ETAPA 1</a>
+
+    {% if resumen and resumen.disponible %}
+
+    <p class="hero-status">
+        <span class="status-dot"></span>
+        Último corte disponible: {{ resumen.fecha_stock }}
+        <span class="hero-status-sep">·</span>
+        {{ resumen.registros_texto }} registros en el conjunto de datos
+    </p>
+
+    {% endif %}
+
+</section>
+
+
+<!-- ======================================================
+     CIFRAS DE CABECERA
+     ======================================================= -->
+
+{% if resumen and resumen.disponible %}
+
+<section class="kpi-grid">
+
+    <article class="cyber-panel kpi-card">
+        <p class="kpi-label">Detenidos en el último corte</p>
+        <p class="kpi-value">{{ resumen.stock_texto }}</p>
+        <p class="kpi-note">
+            Personas registradas el {{ resumen.fecha_stock }}
+        </p>
+    </article>
+
+    <article class="cyber-panel kpi-card">
+        <p class="kpi-label">Países y territorios</p>
+        <p class="kpi-value">{{ resumen.paises_texto }}</p>
+        <p class="kpi-note">
+            Con al menos un registro en toda la serie
+        </p>
+    </article>
+
+    <article class="cyber-panel kpi-card">
+        <p class="kpi-label">Cortes publicados</p>
+        <p class="kpi-value">{{ resumen.cortes_texto }}</p>
+        <p class="kpi-note">
+            Acumulados entre {{ resumen.anio_inicial }} y {{ resumen.anio_final }}
+        </p>
+    </article>
+
+    <article class="cyber-panel kpi-card">
+        <p class="kpi-label">Ritmo diario promedio</p>
+        <p class="kpi-value kpi-value-cyan">
+            {{ resumen.ritmo_texto }}
+        </p>
+        <p class="kpi-note">
+            Personas por día entre cortes comparables
+        </p>
+    </article>
+
+</section>
+
+<p class="series-note">
+    La serie crece <strong>{{ resumen.crecimiento_texto }}</strong> entre el
+    primer y el último corte: la población detenida en el exterior se
+    mantiene estable y no crece de forma sostenida.
+</p>
+
+{% else %}
+
+<section class="cyber-panel home-warning">
+    <strong>CONJUNTO DE DATOS NO DISPONIBLE</strong>
+    <p>
+        No se pudo leer el CSV en esta visita, así que la portada se
+        publica sin cifras. Los tableros de las dimensiones cargan el
+        mismo archivo: revisa <code>/health</code> para saber si el
+        problema es la carga del conjunto o la publicación.
+    </p>
+</section>
+
+{% endif %}
+
+
+<!-- ======================================================
+     DIMENSIONES DEL ANÁLISIS
+     ======================================================= -->
+
+<section class="home-section">
+
+    <div class="section-head">
+        <span class="section-index">01</span>
+        <h2 class="section-title">Dimensiones del análisis</h2>
     </div>
-</div>
+
+    <div class="dim-grid">
+
+        <article class="cyber-panel dim-card">
+            <div class="dim-card-top">
+                <span class="dim-code">D1</span>
+                <span class="dim-status dim-status-live">Publicada</span>
+            </div>
+            <h3 class="dim-name">Poblacional</h3>
+            <p class="dim-question">
+                ¿Cómo está compuesta la población según género, edad,
+                delito y situación jurídica?
+            </p>
+            <a href="{{ url_for('dimension_poblacional') }}" class="dim-link">
+                IR AL TABLERO →
+            </a>
+        </article>
+
+        <article class="cyber-panel dim-card">
+            <div class="dim-card-top">
+                <span class="dim-code">D2</span>
+                <span class="dim-status dim-status-live">Publicada</span>
+            </div>
+            <h3 class="dim-name">Territorial</h3>
+            <p class="dim-question">
+                ¿Dónde se concentra la población detenida y cómo se
+                reparte por continente, país de prisión y consulado?
+            </p>
+            <a href="{{ url_for('dimension_territorial') }}" class="dim-link">
+                IR AL TABLERO →
+            </a>
+        </article>
+
+        <article class="cyber-panel dim-card">
+            <div class="dim-card-top">
+                <span class="dim-code">D3</span>
+                <span class="dim-status dim-status-live">Publicada</span>
+            </div>
+            <h3 class="dim-name">Temporal</h3>
+            <p class="dim-question">
+                ¿Cómo ha cambiado la población detenida a lo largo del
+                periodo disponible?
+            </p>
+            <a href="{{ url_for('dimension_temporal') }}" class="dim-link">
+                IR AL TABLERO →
+            </a>
+        </article>
+
+        <article class="cyber-panel dim-card">
+            <div class="dim-card-top">
+                <span class="dim-code">D4</span>
+                <span class="dim-status dim-status-live">Publicada</span>
+            </div>
+            <h3 class="dim-name">Relacional y multivariada</h3>
+            <p class="dim-question">
+                ¿Qué relaciones aparecen entre país, delito, situación
+                jurídica, género y edad dentro de los subgrupos?
+            </p>
+            <a href="{{ url_for('dimension_4') }}" class="dim-link">
+                IR AL TABLERO →
+            </a>
+        </article>
+
+    </div>
+
+</section>
+
+
+<!-- ======================================================
+     ANÁLISIS COMPLETOS Y FUENTE DEL DATO
+     ======================================================= -->
+
+<section class="home-section home-split">
+
+    <div class="cyber-panel">
+        <h3 class="panel-title">ANÁLISIS COMPLETOS</h3>
+        <p class="panel-text">
+            Cada una de las cuatro dimensiones tiene, además del tablero
+            con filtros, una lectura escrita con metodología,
+            indicadores, conocimientos evidentes y limitaciones.
+        </p>
+        <div class="panel-links">
+            <a href="{{ url_for('analisis_poblacional') }}" class="cyber-btn-ghost">
+                COMPOSICIÓN Y DISTRIBUCIÓN POBLACIONAL
+            </a>
+            <a href="{{ url_for('analisis_territorial') }}" class="cyber-btn-ghost">
+                DISTRIBUCIÓN TERRITORIAL Y CONSULAR
+            </a>
+            <a href="{{ url_for('analisis_temporal') }}" class="cyber-btn-ghost">
+                EVOLUCIÓN DE LA POBLACIÓN DETENIDA
+            </a>
+            <a href="{{ url_for('analisis_relacional') }}" class="cyber-btn-ghost">
+                CRUCES ENTRE PAÍS, DELITO Y SITUACIÓN JURÍDICA
+            </a>
+        </div>
+    </div>
+
+    <div class="cyber-panel">
+        <h3 class="panel-title">FUENTE DEL DATO</h3>
+        <dl class="meta-list">
+            <dt>Entidad que publica</dt>
+            <dd>Ministerio de Relaciones Exteriores</dd>
+
+            <dt>Conjunto de datos</dt>
+            <dd>Portal Nacional de Datos Abiertos Colombia · <code>e97j-vuf7</code></dd>
+
+            <dt>Cobertura</dt>
+            <dd>
+                {% if resumen and resumen.disponible %}
+                Cortes publicados de {{ resumen.anio_inicial }} a {{ resumen.anio_final }}
+                {% else %}
+                Serie de cortes publicados por la entidad
+                {% endif %}
+            </dd>
+
+            <dt>Variables</dt>
+            <dd>
+                País de prisión, consulado, delito, situación jurídica,
+                género, grupo de edad y cantidad
+            </dd>
+        </dl>
+    </div>
+
+</section>
+
+<p class="home-note">
+    El conjunto registra la fecha de publicación de cada corte, no la
+    fecha de la detención. Por eso las comparaciones válidas son entre
+    cortes y por día, y no por mes.
+</p>
+
+
 {% endblock %}
