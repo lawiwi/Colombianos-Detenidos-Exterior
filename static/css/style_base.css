@@ -40,12 +40,33 @@ body {
 }
 
 .nav-brand {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    text-decoration: none;
+    line-height: 1;
+}
+
+.nav-brand-name {
     font-family: 'Syncopate', sans-serif;
     color: var(--neon-pink);
     font-weight: 700;
-    font-size: 1.5rem;
-    text-decoration: none;
+    font-size: 1.4rem;
+    letter-spacing: 3px;
     text-shadow: 2px 2px 0px rgba(0,255,255,0.5);
+    transition: color 0.3s, text-shadow 0.3s;
+}
+
+.nav-brand-sub {
+    font-size: 0.68rem;
+    letter-spacing: 3px;
+    color: rgba(0, 255, 255, 0.75);
+    text-transform: uppercase;
+}
+
+.nav-brand:hover .nav-brand-name {
+    color: var(--neon-cyan);
+    text-shadow: 2px 2px 0px rgba(255, 0, 85, 0.5);
 }
 
 .nav-links { display: flex; gap: 15px; }
@@ -80,3 +101,22 @@ body {
 .panel-title { color: var(--neon-cyan); font-family: 'Syncopate', sans-serif; font-size: 1rem; margin-bottom: 15px; border-bottom: 1px dashed #333; padding-bottom: 5px; }
 .neon-text { color: var(--neon-cyan); }
 .warning { color: var(--neon-pink) !important; text-shadow: 0 0 5px var(--neon-pink); }
+
+/* En pantallas estrechas la barra se apila y el menú baja de tamaño */
+@media (max-width: 600px) {
+
+    .cyber-navbar {
+        flex-direction: column;
+        gap: 12px;
+        padding: 12px 16px;
+    }
+
+    .nav-brand { align-items: center; }
+
+    .nav-links { gap: 10px; }
+
+    .nav-hex { padding: 7px 13px; }
+
+    .main-container { padding: 20px 16px; }
+
+}

@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}PROYECTO ANALÍTICA{% endblock %}</title>
-    
+    <title>{% block title %}Colombianos detenidos en el exterior{% endblock %}</title>
+
     <!-- CSS Global -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style_base.css') }}">
-    
+
     <!-- Espacio para CSS específico de cada página -->
     {% block extra_css %}{% endblock %}
     <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
@@ -19,12 +19,19 @@
 
     <!-- Menú de Navegación (Ahora seguro en la parte superior) -->
     <nav class="cyber-navbar">
-        <a href="{{ url_for('index') }}" class="nav-brand">CORE</a>
+        <a href="{{ url_for('index') }}" class="nav-brand">
+            <span class="nav-brand-name">DETENIDOS</span>
+            <span class="nav-brand-sub">en el exterior</span>
+        </a>
         <div class="nav-links">
-            <a href="{{ url_for('dimension_1') }}" class="nav-hex">D1</a>
-            <a href="{{ url_for('dimension_2') }}" class="nav-hex">D2</a>
-            <a href="{{ url_for('dimension_3') }}" class="nav-hex">D3</a>
-            <a href="{{ url_for('dimension_4') }}" class="nav-hex">D4</a>
+            <a href="{{ url_for('dimension_1') }}" class="nav-hex"
+               title="Dimensión 1 · Poblacional">D1</a>
+            <a href="{{ url_for('dimension_2') }}" class="nav-hex"
+               title="Dimensión 2 · Territorial">D2</a>
+            <a href="{{ url_for('dimension_3') }}" class="nav-hex"
+               title="Dimensión 3 · Temporal">D3</a>
+            <a href="{{ url_for('dimension_4') }}" class="nav-hex"
+               title="Dimensión 4 · Relacional y multivariada">D4</a>
         </div>
     </nav>
 
